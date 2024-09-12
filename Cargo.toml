@@ -1,0 +1,16 @@
+[package]
+name = "term"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+gpui = { git = "https://github.com/zed-industries/zed" }
+nix = { version = "0.29.0", features = ["term", "process", "fs"] }
+regex = "1.10.6"
+libc = "0.2"
+rustix-openpty = "0.1.1"
+strip-ansi-escapes = "0.2.0"
+# smallvec is included here for convenience, it is used by gpui when creating
+# components that can have children. uncomment this line or
+# use `cargo add smallvec` to add it to your project
+#smallvec = "1.13.2"
