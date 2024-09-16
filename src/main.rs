@@ -1,16 +1,28 @@
 use gpui::*;
 use libc::TIOCSCTTY;
-use std::ffi::c_int;
 use std::fs::File;
-use std::io::{self, Error, Read, Write};
+use std::io::{self, Error, ErrorKind, Read, Write};
 use std::os::fd::{AsRawFd, OwnedFd};
 use std::os::unix::process::CommandExt;
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
+use std::time::Duration;
+
+struct Content {
+    content: Arc<Mutex<Vec<String>>>,
+}
+
+impl Content {
+    fn new() -> Self {
+        Self {
+            content: Arc::new(Mutex::new(vec![String::new()])),
+        }
+    }
+}
 
 struct TerminalView {
     master: File,
-    content: Arc<Mutex<Vec<String>>>,
+    output: Model<Content>,
     focus_handle: FocusHandle,
 }
 
@@ -20,7 +32,13 @@ struct Pty {
 }
 
 fn open_pty() -> Result<Pty, Error> {
+    // Ask OS for a PTY
     let pty = rustix_openpty::openpty(None, None)?;
+
+    // Make reads on master non-blocking
+    unsafe { libc::fcntl(pty.controller.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK) };
+
+    // Return a struct with master and slave side of PTY
     Ok(Pty {
         master: pty.controller,
         slave: pty.user,
@@ -29,7 +47,7 @@ fn open_pty() -> Result<Pty, Error> {
 
 fn spawn_shell(slave: &OwnedFd, shell: &str) -> io::Result<Child> {
     let mut command = Command::new(shell);
-    command.env("TERM", "xterm-256color");
+    command.env("TERM", "dumb");
     command.stdin(slave.try_clone()?);
     command.stdout(slave.try_clone()?);
     command.stderr(slave.try_clone()?);
@@ -58,76 +76,87 @@ fn spawn_shell(slave: &OwnedFd, shell: &str) -> io::Result<Child> {
     command.spawn()
 }
 
-fn read_output(master: &OwnedFd) -> Arc<Mutex<Vec<String>>> {
-    let content = Arc::new(Mutex::new(vec![String::new()]));
-    let content_clone = Arc::clone(&content);
+fn read_output(master: &OwnedFd, cx: &mut ViewContext<TerminalView>) -> Model<Content> {
+    let content_model = cx.new_model(|_| Content::new());
+    let content = content_model.clone();
     let master_clone = master.try_clone().unwrap();
-    std::thread::spawn(move || {
+
+    cx.spawn(|_, mut cx| async move {
         let mut buffer = [0u8; 1024];
         let mut file = File::from(master_clone);
         loop {
+            async_std::task::sleep(Duration::from_millis(16)).await;
             match file.read(&mut buffer) {
                 Ok(0) => break,
                 Ok(num_bytes) => {
-                    let mut _content = content_clone.lock().unwrap();
-                    let bytes = &buffer[..num_bytes];
-                    let plain_bytes = strip_ansi_escapes::strip(bytes);
-                    println!("{}", String::from_utf8_lossy(bytes));
-                    for byte in plain_bytes {
-                        if byte == b'\n' {
-                            _content.push(String::new());
-                        } else {
-                            let last_line = _content.last_mut().unwrap();
-                            last_line.push(byte as char);
+                    cx.update_model(&content, |model, cx| {
+                        let mut _content = model.content.lock().unwrap();
+                        let bytes = &buffer[..num_bytes];
+                        let plain_bytes = &strip_ansi_escapes::strip(bytes);
+                        for &byte in plain_bytes {
+                            if byte == b'\n' {
+                                _content.push(String::new());
+                            } else if byte == b'\x7f' {
+                                if let Some(line) = _content.last_mut() {
+                                    if line.len() > 0 {
+                                        line.remove(line.len() - 1);
+                                    }
+                                }
+                            } else {
+                                let last_line = _content.last_mut().unwrap();
+                                last_line.push(byte as char);
+                            }
                         }
-                    }
+                        drop(_content);
+                        cx.notify();
+                    })
+                    .unwrap();
                 }
                 Err(e) => {
-                    eprint!("Error reading from PTY: {:?}", e)
+                    // WouldBlock is expected when there is no input
+                    if e.kind() != ErrorKind::WouldBlock {
+                        eprint!("Error reading from PTY: {:?}", e)
+                    }
                 }
             }
         }
-    });
+    })
+    .detach();
 
-    content
-}
-
-fn lol(f: Tmp) {
-    std::thread::spawn(move || {
-        let mut _f = f;
-        _f.f();
-    });
-}
-
-pub struct Tmp {
-    pub f: Arc<dyn Fn() + Sync + Send>,
-}
-
-impl Tmp {
-    pub fn new(f: Arc<dyn Fn() + Send + Sync>) -> Self {
-        Self { f }
-    }
+    content_model
 }
 
 impl TerminalView {
     fn new(cx: &mut ViewContext<Self>) -> Result<Self, Error> {
+        // Retrieve shell from env var
         let shell = std::env::var("SHELL").expect("Expected to find default shell in $SHELL env var");
+
+        // Ask OS for a PTY
         let pty = open_pty()?;
-        let content = read_output(&pty.master);
-        cx.observe(Model<&content>, |_this, _model, cx| {
+
+        // Listen for input to master
+        let output = read_output(&pty.master.try_clone().unwrap(), cx);
+
+        // Observe changes in the model and notify gpui
+        cx.observe(&output, |_, _, cx| {
             cx.notify();
-        });
-        spawn_shell(&pty.slave, shell.as_str())
+        })
+        .detach();
+
+        // Spawn shell and connect to slave side of PTY
+        let result = spawn_shell(&pty.slave, shell.as_str());
+
+        // Return model if shell spawns without error
+        result
             .map(|_| Self {
                 master: File::from(pty.master.try_clone().unwrap()),
-                content,
+                output,
                 focus_handle: cx.focus_handle(),
             })
             .map_err(|err| Error::new(err.kind(), format!("Failed to spawn command '{}': {}", shell, err)))
     }
 
     fn send_input(&self, input: &str) {
-        println!("Input: {}", input);
         let mut f = self.master.try_clone().unwrap();
         let _ = f.write_all(input.as_bytes());
         let _ = f.flush();
@@ -137,34 +166,34 @@ impl TerminalView {
 impl Render for TerminalView {
     fn render(&mut self, cx: &mut ViewContext<TerminalView>) -> impl IntoElement {
         cx.focus(&self.focus_handle);
+        let content = self.output.read(cx).content.lock().unwrap();
 
-        let content = self.content.lock().unwrap();
-        let content_clone = content.clone();
-        drop(content);
         div()
             .pt_5()
             .track_focus(&self.focus_handle)
-            .on_key_down(cx.listener(|this, event: &KeyDownEvent, cx| {
-                match event.keystroke.key.as_str() {
+            .on_key_down(
+                cx.listener(|this, event: &KeyDownEvent, _cx| match event.keystroke.key.as_str() {
                     "enter" => this.send_input("\r"),
                     "backspace" => this.send_input("\x7f"),
                     "space" => this.send_input(" "),
                     key if key.len() == 1 => this.send_input(key),
                     _ => {}
-                }
-
-                // Notify gpui of changes to the model
-                cx.notify()
-            }))
+                }),
+            )
             .size_full()
             .bg(rgb(0x282c34))
             .text_color(rgb(0xabb2bf))
             .font(font("monospace"))
             .child(
                 div().size_full().p_2().items_start().child(
-                    div()
-                        .flex_col()
-                        .children(content_clone.iter().map(|line| div().child(format!("{}", line)))),
+                    div().flex_col().children(
+                        content
+                            .iter()
+                            .rev()
+                            .take(26)
+                            .rev()
+                            .map(|line| div().child(format!("{}", line))),
+                    ),
                 ),
             )
     }
