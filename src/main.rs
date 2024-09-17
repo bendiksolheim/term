@@ -9,13 +9,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 struct Content {
-    content: Arc<Mutex<Vec<String>>>,
+    content: Arc<Mutex<Vec<Vec<u8>>>>,
 }
 
 impl Content {
     fn new() -> Self {
         Self {
-            content: Arc::new(Mutex::new(vec![String::new()])),
+            content: Arc::new(Mutex::new(vec![vec![]])),
         }
     }
 }
@@ -23,6 +23,7 @@ impl Content {
 struct TerminalView {
     master: File,
     output: Model<Content>,
+    strip_ansi: bool,
     focus_handle: FocusHandle,
 }
 
@@ -91,20 +92,21 @@ fn read_output(master: &OwnedFd, cx: &mut ViewContext<TerminalView>) -> Model<Co
                 Ok(num_bytes) => {
                     cx.update_model(&content, |model, cx| {
                         let mut _content = model.content.lock().unwrap();
-                        let bytes = &buffer[..num_bytes];
-                        let plain_bytes = &strip_ansi_escapes::strip(bytes);
-                        for &byte in plain_bytes {
-                            if byte == b'\n' {
-                                _content.push(String::new());
-                            } else if byte == b'\x7f' {
-                                if let Some(line) = _content.last_mut() {
-                                    if line.len() > 0 {
-                                        line.remove(line.len() - 1);
-                                    }
+                        let bytes = buffer[..num_bytes].to_vec();
+                        if bytes == b"\n" {
+                            // Newline
+                            _content.push(vec![]);
+                        } else if bytes == b"\x08 \x08" {
+                            // Backspace
+                            if let Some(line) = _content.last_mut() {
+                                if line.len() > 0 {
+                                    line.remove(line.len() - 1);
                                 }
-                            } else {
-                                let last_line = _content.last_mut().unwrap();
-                                last_line.push(byte as char);
+                            }
+                        } else {
+                            // All the rest
+                            if let Some(line) = _content.last_mut() {
+                                line.extend(bytes);
                             }
                         }
                         drop(_content);
@@ -151,6 +153,7 @@ impl TerminalView {
             .map(|_| Self {
                 master: File::from(pty.master.try_clone().unwrap()),
                 output,
+                strip_ansi: true,
                 focus_handle: cx.focus_handle(),
             })
             .map_err(|err| Error::new(err.kind(), format!("Failed to spawn command '{}': {}", shell, err)))
@@ -160,6 +163,10 @@ impl TerminalView {
         let mut f = self.master.try_clone().unwrap();
         let _ = f.write_all(input.as_bytes());
         let _ = f.flush();
+    }
+
+    fn toggle_ansi(&mut self) {
+        self.strip_ansi = !self.strip_ansi;
     }
 }
 
@@ -176,6 +183,14 @@ impl Render for TerminalView {
                     "enter" => this.send_input("\r"),
                     "backspace" => this.send_input("\x7f"),
                     "space" => this.send_input(" "),
+                    "t" => {
+                        if event.keystroke.modifiers.control {
+                            this.toggle_ansi();
+                            _cx.notify();
+                        } else {
+                            this.send_input("t");
+                        }
+                    }
                     key if key.len() == 1 => this.send_input(key),
                     _ => {}
                 }),
@@ -184,18 +199,15 @@ impl Render for TerminalView {
             .bg(rgb(0x282c34))
             .text_color(rgb(0xabb2bf))
             .font(font("monospace"))
-            .child(
-                div().size_full().p_2().items_start().child(
-                    div().flex_col().children(
-                        content
-                            .iter()
-                            .rev()
-                            .take(26)
-                            .rev()
-                            .map(|line| div().child(format!("{}", line))),
-                    ),
-                ),
-            )
+            .child(div().size_full().p_2().items_start().child(div().flex_col().children(
+                content.iter().rev().take(34).rev().map(|bytes| {
+                    let line = match self.strip_ansi {
+                        true => String::from_utf8(strip_ansi_escapes::strip(bytes)).unwrap(),
+                        false => String::from_utf8_lossy(bytes).to_string(),
+                    };
+                    div().child(format!("{}", line))
+                }),
+            )))
     }
 }
 
