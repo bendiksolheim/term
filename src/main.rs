@@ -53,7 +53,7 @@ pub enum Message {
 
 impl Terminalview {
     fn new() -> (Self, Task<Message>) {
-        let size = TerminalSize { cols: 80, rows: 24 };
+        let size = TerminalSize { cols: 121, rows: 42 };
         let content = Grid::new(size.rows, size.cols, vec![Cell::default(); size.rows * size.cols]);
         let model = Self {
             size,
