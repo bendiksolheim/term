@@ -18,7 +18,7 @@ use iced::{
     },
     keyboard::{self, Key, Modifiers},
     widget::{container, text, Column, Row},
-    Element, Font, Subscription, Task,
+    Border, Element, Font, Shadow, Subscription, Task,
 };
 use structs::{
     cell::{Cell, CellStyle},
@@ -70,14 +70,27 @@ impl Terminalview {
         container(Column::with_children(
             self.content
                 .iter_rows()
-                .map(|row| {
+                .enumerate()
+                .map(|(y, row)| {
                     container(Row::with_children(
                         row.iter()
-                            .map(|cell| {
-                                text(cell.content.to_string())
-                                    .font(Font::MONOSPACE)
-                                    .size(14)
-                                    .color(cell.style.foreground.foreground_color())
+                            .enumerate()
+                            .map(|(x, cell)| {
+                                let style = if self.cursor.col == x && self.cursor.row == y {
+                                    CellStyle {
+                                        foreground: TerminalColor::Black,
+                                        background: TerminalColor::White,
+                                    }
+                                } else {
+                                    cell.style
+                                };
+                                container(text(cell.content.to_string()).font(Font::MONOSPACE).size(14))
+                                    .style(move |_| container::Style {
+                                        text_color: Some(style.foreground.foreground_color()),
+                                        background: Some(iced::Background::Color(style.background.background_color())),
+                                        border: Border::default(),
+                                        shadow: Shadow::default(),
+                                    })
                                     .into()
                             })
                             .collect::<Vec<_>>(),

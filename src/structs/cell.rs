@@ -18,4 +18,5 @@ impl Default for Cell {
 #[derive(Default, Debug, Clone, Copy)]
 pub struct CellStyle {
     pub foreground: colors::TerminalColor,
+    pub background: colors::TerminalColor,
 }

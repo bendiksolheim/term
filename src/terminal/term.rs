@@ -113,28 +113,28 @@ fn read_output(master: &OwnedFd, mut sender: Sender<Event>) {
                 Ok(num_bytes) => {
                     let read_bytes = buffer[..num_bytes].to_vec();
                     println!("Bytes: {:?}", read_bytes);
-                    if read_bytes == b"\x08 \x08" {
-                        sender.send(Event::Output(Output::Backspace)).await.unwrap();
-                    }
 
                     let mut byte_sequence: Vec<u8> = vec![];
                     for byte in read_bytes.iter() {
                         match byte {
-                            b'\n' => {
-                                //newline
-                                let _s = byte_sequence.clone();
+                            b'\x08' => {
+                                let _s = byte_sequence.drain(0..).collect();
                                 let str_sequence = String::from_utf8(_s).unwrap();
                                 sender.send(Event::Output(Output::Text(str_sequence))).await.unwrap();
-                                byte_sequence.clear();
+
+                                sender.send(Event::Output(Output::Backspace)).await.unwrap();
+                            }
+                            b'\n' => {
+                                let _s = byte_sequence.drain(0..).collect();
+                                let str_sequence = String::from_utf8(_s).unwrap();
+                                sender.send(Event::Output(Output::Text(str_sequence))).await.unwrap();
 
                                 sender.send(Event::Output(Output::NewLine)).await.unwrap();
                             }
                             b'\r' => {
-                                //cr
-                                let _s = byte_sequence.clone();
+                                let _s = byte_sequence.drain(0..).collect();
                                 let str_sequence = String::from_utf8(_s).unwrap();
                                 sender.send(Event::Output(Output::Text(str_sequence))).await.unwrap();
-                                byte_sequence.clear();
 
                                 sender.send(Event::Output(Output::CarriageReturn)).await.unwrap();
                             }
