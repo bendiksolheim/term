@@ -67,12 +67,12 @@ impl Terminalview {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        container(Column::with_children(
+        Column::with_children(
             self.content
                 .iter_rows()
                 .enumerate()
                 .map(|(y, row)| {
-                    container(Row::with_children(
+                    Row::with_children(
                         row.iter()
                             .enumerate()
                             .map(|(x, cell)| {
@@ -94,16 +94,11 @@ impl Terminalview {
                                     .into()
                             })
                             .collect::<Vec<_>>(),
-                    ))
-                    .style(|_| {
-                        container::Style::default()
-                            .border(border::color(TerminalColor::Green.foreground_color()).width(1))
-                    })
+                    )
                     .into()
                 })
                 .collect::<Vec<_>>(),
-        ))
-        .style(|_| container::Style::default().border(border::color(TerminalColor::Red.foreground_color()).width(2)))
+        )
         .into()
     }
 
