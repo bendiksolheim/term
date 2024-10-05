@@ -137,7 +137,11 @@ impl Terminalview {
                         }
 
                         Output::NewLine => {
-                            self.cursor.down();
+                            if self.cursor.row == self.size.rows - 1 {
+                                self.content.shift_row();
+                            } else {
+                                self.cursor.down();
+                            }
                         }
 
                         Output::CarriageReturn => {

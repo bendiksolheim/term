@@ -8,7 +8,7 @@ pub struct Grid<T> {
     data: Vec<T>,
 }
 
-impl<T> Grid<T> {
+impl<T: Clone + Default> Grid<T> {
     pub fn new(rows: usize, cols: usize, data: Vec<T>) -> Self {
         assert_eq!(rows * cols, data.len());
         Self { rows, cols, data }
@@ -17,7 +17,14 @@ impl<T> Grid<T> {
     pub fn iter_rows(&self) -> impl Iterator<Item = &[T]> {
         self.data.chunks(self.cols)
     }
+
+    pub fn shift_row(&mut self) {
+        let len = self.data.len();
+        self.data.rotate_left(self.cols);
+        self.data[len - self.cols..].fill(T::default());
+    }
 }
+
 impl<T> Index<(usize, usize)> for Grid<T> {
     type Output = T;
 
