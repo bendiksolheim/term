@@ -76,21 +76,9 @@ impl Terminalview {
                         row.iter()
                             .enumerate()
                             .map(|(x, cell)| {
-                                let style = if self.cursor.col == x && self.cursor.row == y {
-                                    CellStyle {
-                                        foreground: TerminalColor::Black,
-                                        background: TerminalColor::White,
-                                    }
-                                } else {
-                                    cell.style
-                                };
+                                let style = self.calculate_cell_style(x, y, cell);
                                 container(text(cell.content.to_string()).font(Font::MONOSPACE).size(14))
-                                    .style(move |_| container::Style {
-                                        text_color: Some(style.foreground.foreground_color()),
-                                        background: Some(iced::Background::Color(style.background.background_color())),
-                                        border: Border::default(),
-                                        shadow: Shadow::default(),
-                                    })
+                                    .style(move |_| style)
                                     .into()
                             })
                             .collect::<Vec<_>>(),
@@ -100,6 +88,24 @@ impl Terminalview {
                 .collect::<Vec<_>>(),
         )
         .into()
+    }
+
+    fn calculate_cell_style(&self, x: usize, y: usize, cell: &Cell) -> container::Style {
+        let style = if self.cursor.col == x && self.cursor.row == y {
+            CellStyle {
+                foreground: TerminalColor::Black,
+                background: TerminalColor::White,
+            }
+        } else {
+            cell.style
+        };
+
+        container::Style {
+            text_color: Some(style.foreground.foreground_color()),
+            background: Some(iced::Background::Color(style.background.background_color())),
+            border: Border::default(),
+            shadow: Shadow::default(),
+        }
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
