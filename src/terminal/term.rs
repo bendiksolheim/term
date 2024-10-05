@@ -6,7 +6,7 @@ use iced::{
     keyboard::Key,
 };
 use libc::TIOCSCTTY;
-use rustix_openpty::rustix::termios::Winsize;
+pub use rustix_openpty::rustix::termios::Winsize;
 use std::{
     fs::File,
     io::{self, Error, ErrorKind, Read, Write},
@@ -70,7 +70,8 @@ pub enum Event {
 #[derive(Debug, Clone)]
 pub enum Output {
     Text(String),
-    Newline,
+    NewLine,
+    CarriageReturn,
     Backspace,
 }
 
@@ -88,7 +89,7 @@ fn open_pty(winsize: Winsize) -> Result<Pty, Error> {
     // Ask OS for a PTY
     let pty = rustix_openpty::openpty(None, Some(&winsize))?;
 
-    // Make reads on master non-blocking
+    // Make reads on master non-blockinginput
     unsafe { libc::fcntl(pty.controller.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK) };
 
     // Return a struct with master and slave side of PTY
@@ -110,17 +111,44 @@ fn read_output(master: &OwnedFd, mut sender: Sender<Event>) {
             match file.read(&mut buffer) {
                 Ok(0) => break,
                 Ok(num_bytes) => {
-                    let bytes = buffer[..num_bytes].to_vec();
-                    if bytes == b"\n" {
-                        sender.send(Event::Output(Output::Newline)).await.unwrap();
-                    } else if bytes == b"\x08 \x08" {
+                    let read_bytes = buffer[..num_bytes].to_vec();
+                    println!("Bytes: {:?}", read_bytes);
+                    if read_bytes == b"\x08 \x08" {
                         sender.send(Event::Output(Output::Backspace)).await.unwrap();
-                    } else {
-                        if let Ok(str) = String::from_utf8(bytes) {
-                            sender.send(Event::Output(Output::Text(str))).await.unwrap();
+                    }
+
+                    let mut byte_sequence: Vec<u8> = vec![];
+                    for byte in read_bytes.iter() {
+                        match byte {
+                            b'\n' => {
+                                //newline
+                                let _s = byte_sequence.clone();
+                                let str_sequence = String::from_utf8(_s).unwrap();
+                                sender.send(Event::Output(Output::Text(str_sequence))).await.unwrap();
+                                byte_sequence.clear();
+
+                                sender.send(Event::Output(Output::NewLine)).await.unwrap();
+                            }
+                            b'\r' => {
+                                //cr
+                                let _s = byte_sequence.clone();
+                                let str_sequence = String::from_utf8(_s).unwrap();
+                                sender.send(Event::Output(Output::Text(str_sequence))).await.unwrap();
+                                byte_sequence.clear();
+
+                                sender.send(Event::Output(Output::CarriageReturn)).await.unwrap();
+                            }
+                            b => {
+                                byte_sequence.push(*b);
+                            }
                         }
                     }
+
+                    // Any bytes left? Push them
+                    let _s = String::from_utf8(byte_sequence).unwrap();
+                    sender.send(Event::Output(Output::Text(_s))).await.unwrap();
                 }
+
                 Err(e) => {
                     // WouldBlock is expected when there is no input
                     if e.kind() != ErrorKind::WouldBlock {
