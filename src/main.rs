@@ -103,7 +103,9 @@ impl Terminalview {
         container::Style {
             text_color: Some(style.foreground.foreground_color()),
             background: Some(iced::Background::Color(style.background.background_color())),
-            border: Border::default(),
+            border: Border::default()
+                .color(TerminalColor::Green.foreground_color())
+                .width(0),
             shadow: Shadow::default(),
         }
     }
