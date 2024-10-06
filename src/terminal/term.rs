@@ -64,7 +64,7 @@ fn send(mut master: &File, content: &str) {
 #[derive(Debug, Clone)]
 pub enum Event {
     Ready(mpsc::Sender<TermMessage>),
-    Output(Output),
+    Multi(Vec<Output>),
 }
 
 #[derive(Debug, Clone)]
@@ -112,31 +112,35 @@ fn read_output(master: &OwnedFd, mut sender: Sender<Event>) {
                 Ok(0) => break,
                 Ok(num_bytes) => {
                     let read_bytes = buffer[..num_bytes].to_vec();
-                    println!("Bytes: {:?}", read_bytes);
+                    // println!("Bytes: {:?}", read_bytes);
 
                     let mut byte_sequence: Vec<u8> = vec![];
+                    let mut output: Vec<Output> = vec![];
                     for byte in read_bytes.iter() {
                         match byte {
                             b'\x08' => {
-                                let _s = byte_sequence.drain(0..).collect();
-                                let str_sequence = String::from_utf8(_s).unwrap();
-                                sender.send(Event::Output(Output::Text(str_sequence))).await.unwrap();
-
-                                sender.send(Event::Output(Output::Backspace)).await.unwrap();
+                                if byte_sequence.len() > 0 {
+                                    let _s = byte_sequence.drain(0..).collect();
+                                    let str_sequence = String::from_utf8(_s).unwrap();
+                                    output.push(Output::Text(str_sequence));
+                                }
+                                output.push(Output::Backspace);
                             }
                             b'\n' => {
-                                let _s = byte_sequence.drain(0..).collect();
-                                let str_sequence = String::from_utf8(_s).unwrap();
-                                sender.send(Event::Output(Output::Text(str_sequence))).await.unwrap();
-
-                                sender.send(Event::Output(Output::NewLine)).await.unwrap();
+                                if byte_sequence.len() > 0 {
+                                    let _s = byte_sequence.drain(0..).collect();
+                                    let str_sequence = String::from_utf8(_s).unwrap();
+                                    output.push(Output::Text(str_sequence));
+                                }
+                                output.push(Output::NewLine);
                             }
                             b'\r' => {
-                                let _s = byte_sequence.drain(0..).collect();
-                                let str_sequence = String::from_utf8(_s).unwrap();
-                                sender.send(Event::Output(Output::Text(str_sequence))).await.unwrap();
-
-                                sender.send(Event::Output(Output::CarriageReturn)).await.unwrap();
+                                if byte_sequence.len() > 0 {
+                                    let _s = byte_sequence.drain(0..).collect();
+                                    let str_sequence = String::from_utf8(_s).unwrap();
+                                    output.push(Output::Text(str_sequence));
+                                }
+                                output.push(Output::CarriageReturn);
                             }
                             b => {
                                 byte_sequence.push(*b);
@@ -146,7 +150,9 @@ fn read_output(master: &OwnedFd, mut sender: Sender<Event>) {
 
                     // Any bytes left? Push them
                     let _s = String::from_utf8(byte_sequence).unwrap();
-                    sender.send(Event::Output(Output::Text(_s))).await.unwrap();
+                    output.push(Output::Text(_s));
+
+                    sender.send(Event::Multi(output)).await.unwrap();
                 }
 
                 Err(e) => {

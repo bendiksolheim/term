@@ -111,6 +111,7 @@ impl Terminalview {
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
+        println!("Message: {:?}", message);
         match message {
             Message::Keyboard(k, _) => {
                 if let Some(sender) = self.sender.clone() {
@@ -132,27 +133,26 @@ impl Terminalview {
                     self.sender = Some(sender);
                     Task::none()
                 }
-                terminal::term::Event::Output(s) => {
-                    match s {
-                        Output::Text(s) => {
-                            self.handle_ansi(&s);
-                        }
-
-                        Output::NewLine => {
-                            if self.cursor.row == self.size.rows - 1 {
-                                self.content.shift_row();
-                            } else {
-                                self.cursor.down();
+                terminal::term::Event::Multi(output) => {
+                    for token in output {
+                        match token {
+                            Output::Text(s) => {
+                                self.handle_ansi(&s);
                             }
-                        }
-
-                        Output::CarriageReturn => {
-                            self.cursor.col = 0;
-                        }
-
-                        Output::Backspace => {
-                            self.cursor.left();
-                            self.content[self.cursor] = Cell::default();
+                            Output::NewLine => {
+                                if self.cursor.row == self.size.rows - 1 {
+                                    self.content.shift_row();
+                                } else {
+                                    self.cursor.down();
+                                }
+                            }
+                            Output::CarriageReturn => {
+                                self.cursor.col = 0;
+                            }
+                            Output::Backspace => {
+                                self.cursor.left();
+                                self.content[self.cursor] = Cell::default();
+                            }
                         }
                     }
                     Task::none()
