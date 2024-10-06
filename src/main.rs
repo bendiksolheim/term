@@ -18,6 +18,7 @@ use iced::{
     },
     keyboard::{self, Key, Modifiers},
     widget::{container, text, Column, Row},
+    window::{Id, Settings},
     Border, Element, Font, Shadow, Subscription, Task,
 };
 use structs::{
@@ -30,8 +31,7 @@ use terminal::colors::TerminalColor;
 use terminal::term::{Output, Winsize};
 
 fn main() -> iced::Result {
-    iced::application("Terminal", Terminalview::update, Terminalview::view)
-        .decorations(false)
+    iced::daemon("Terminal", Terminalview::update, Terminalview::view)
         .subscription(Terminalview::subscription)
         .run_with(Terminalview::new)
 }
@@ -42,6 +42,7 @@ struct Terminalview {
     content: Grid<Cell>,
     current_cell_style: CellStyle,
     sender: Option<mpsc::Sender<terminal::term::TermMessage>>,
+    terminal_window_id: Option<Id>,
 }
 
 #[derive(Debug, Clone)]
@@ -49,10 +50,12 @@ pub enum Message {
     TerminalInput,
     Keyboard(Key, Modifiers),
     Term(terminal::term::Event),
+    TerminalWindowVisible(Id),
 }
 
 impl Terminalview {
     fn new() -> (Self, Task<Message>) {
+        let (_id, terminal_window) = iced::window::open(terminal_window_settings());
         let size = TerminalSize { cols: 121, rows: 42 };
         let content = Grid::new(size.rows, size.cols, vec![Cell::default(); size.rows * size.cols]);
         let model = Self {
@@ -61,12 +64,13 @@ impl Terminalview {
             content,
             current_cell_style: CellStyle::default(),
             sender: None,
+            terminal_window_id: None,
         };
 
-        (model, Task::none())
+        (model, terminal_window.map(|id| Message::TerminalWindowVisible(id)))
     }
 
-    fn view(&self) -> Element<'_, Message> {
+    fn view(&self, window: Id) -> Element<'_, Message> {
         Column::with_children(
             self.content
                 .iter_rows()
@@ -158,6 +162,10 @@ impl Terminalview {
                     Task::none()
                 }
             },
+            Message::TerminalWindowVisible(id) => {
+                self.terminal_window_id = Some(id);
+                Task::none()
+            }
         }
     }
 
@@ -200,5 +208,12 @@ fn create_winsize(size: TerminalSize) -> Winsize {
         ws_row: u16::try_from(size.rows).expect("Terminal is too tall for Winsize"),
         ws_xpixel: 0,
         ws_ypixel: 0,
+    }
+}
+
+fn terminal_window_settings() -> Settings {
+    Settings {
+        decorations: false,
+        ..Settings::default()
     }
 }
