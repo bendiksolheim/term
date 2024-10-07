@@ -64,7 +64,7 @@ fn send(mut master: &File, content: &str) {
 #[derive(Debug, Clone)]
 pub enum Event {
     Ready(mpsc::Sender<TermMessage>),
-    Multi(Vec<Output>),
+    Output(Vec<Output>),
 }
 
 #[derive(Debug, Clone)]
@@ -152,7 +152,7 @@ fn read_output(master: &OwnedFd, mut sender: Sender<Event>) {
                     let _s = String::from_utf8(byte_sequence).unwrap();
                     output.push(Output::Text(_s));
 
-                    sender.send(Event::Multi(output)).await.unwrap();
+                    sender.send(Event::Output(output)).await.unwrap();
                 }
 
                 Err(e) => {

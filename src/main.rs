@@ -205,7 +205,7 @@ impl Terminalview {
                     self.sender = Some(sender);
                     Task::none()
                 }
-                terminal::term::Event::Multi(output) => {
+                terminal::term::Event::Output(output) => {
                     for token in output {
                         match token {
                             Output::Text(s) => {
