@@ -119,7 +119,7 @@ impl Terminalview {
                         row.iter()
                             .enumerate()
                             .map(|(x, cell)| {
-                                let style = self.calculate_cell_style(x, y, cell);
+                                let style = calculate_cell_style(&self.cursor, x, y, cell);
                                 container(text(cell.content.to_string()).font(Font::MONOSPACE).size(14))
                                     .style(move |_| style)
                                     .into()
@@ -133,28 +133,7 @@ impl Terminalview {
         .into()
     }
 
-    fn calculate_cell_style(&self, x: usize, y: usize, cell: &Cell) -> container::Style {
-        let style = if self.cursor.col == x && self.cursor.row == y {
-            CellStyle {
-                foreground: TerminalColor::Black,
-                background: TerminalColor::White,
-            }
-        } else {
-            cell.style
-        };
-
-        container::Style {
-            text_color: Some(style.foreground.foreground_color()),
-            background: Some(iced::Background::Color(style.background.background_color())),
-            border: Border::default()
-                .color(TerminalColor::Green.foreground_color())
-                .width(0),
-            shadow: Shadow::default(),
-        }
-    }
-
     fn update(&mut self, message: Message) -> Task<Message> {
-        println!("Message: {:?}", message);
         self.debug.messages.push(message.clone());
         match message {
             Message::Keyboard(k, modifiers) => {
@@ -207,12 +186,10 @@ impl Terminalview {
             },
             Message::TerminalWindowVisible(id) => {
                 self.windows.insert(id, WindowType::TerminalWindow);
-                // self.terminal_window_id = Some(id);
                 Task::none()
             }
             Message::DebugWindow(id) => {
                 self.windows.insert(id, WindowType::DebugWindow);
-                // self.debug_window_id = Some(id);
                 Task::none()
             }
             Message::ShowMessage(message) => {
@@ -274,4 +251,24 @@ fn terminal_window_settings() -> Settings {
 
 fn debug_window_settings() -> Settings {
     Settings::default()
+}
+
+fn calculate_cell_style(cursor: &Cursor, x: usize, y: usize, cell: &Cell) -> container::Style {
+    let style = if cursor.col == x && cursor.row == y {
+        CellStyle {
+            foreground: TerminalColor::Black,
+            background: TerminalColor::White,
+        }
+    } else {
+        cell.style
+    };
+
+    container::Style {
+        text_color: Some(style.foreground.foreground_color()),
+        background: Some(iced::Background::Color(style.background.background_color())),
+        border: Border::default()
+            .color(TerminalColor::Green.foreground_color())
+            .width(0),
+        shadow: Shadow::default(),
+    }
 }
