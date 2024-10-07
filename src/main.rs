@@ -9,6 +9,8 @@ mod terminal {
     pub mod term;
 }
 
+use std::collections::BTreeMap;
+
 use ansi_parser::AnsiParser;
 use iced::{
     border,
@@ -17,9 +19,9 @@ use iced::{
         SinkExt,
     },
     keyboard::{self, Key, Modifiers},
-    widget::{container, text, Column, Row},
+    widget::{container, scrollable, text, Column, Container, Row},
     window::{Id, Settings},
-    Border, Element, Font, Shadow, Subscription, Task,
+    Border, Element, Font, Length, Shadow, Subscription, Task,
 };
 use structs::{
     cell::{Cell, CellStyle},
@@ -42,7 +44,23 @@ struct Terminalview {
     content: Grid<Cell>,
     current_cell_style: CellStyle,
     sender: Option<mpsc::Sender<terminal::term::TermMessage>>,
-    terminal_window_id: Option<Id>,
+    windows: BTreeMap<Id, WindowType>,
+    debug: DebugState,
+}
+
+enum WindowType {
+    TerminalWindow,
+    DebugWindow,
+}
+
+struct DebugState {
+    messages: Vec<Message>,
+}
+
+impl Default for DebugState {
+    fn default() -> Self {
+        Self { messages: vec![] }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -51,11 +69,26 @@ pub enum Message {
     Keyboard(Key, Modifiers),
     Term(terminal::term::Event),
     TerminalWindowVisible(Id),
+    DebugWindow(Id),
+}
+
+impl Message {
+    fn to_string(&self) -> &str {
+        match self {
+            Message::TerminalInput => "TerminalInput",
+            Message::Keyboard(_key, _modifiers) => "Keyboard(key, modifiers)",
+            Message::Term(_event) => "Term(event)",
+            Message::TerminalWindowVisible(_id) => "TerminalWindowVisible(id)",
+            Message::DebugWindow(_id) => "DebugWindow(id)",
+        }
+    }
 }
 
 impl Terminalview {
     fn new() -> (Self, Task<Message>) {
-        let (_id, terminal_window) = iced::window::open(terminal_window_settings());
+        let (id, terminal_window) = iced::window::open(terminal_window_settings());
+        let mut windows = BTreeMap::new();
+        windows.insert(id, WindowType::TerminalWindow);
         let size = TerminalSize { cols: 121, rows: 42 };
         let content = Grid::new(size.rows, size.cols, vec![Cell::default(); size.rows * size.cols]);
         let model = Self {
@@ -64,13 +97,24 @@ impl Terminalview {
             content,
             current_cell_style: CellStyle::default(),
             sender: None,
-            terminal_window_id: None,
+            windows,
+            debug: DebugState::default(),
         };
 
         (model, terminal_window.map(|id| Message::TerminalWindowVisible(id)))
     }
 
     fn view(&self, window: Id) -> Element<'_, Message> {
+        match self.windows.get(&window) {
+            Some(window) => match window {
+                WindowType::TerminalWindow => self.terminal_view(),
+                WindowType::DebugWindow => self.debug_view(),
+            },
+            None => text("").into(),
+        }
+    }
+
+    fn terminal_view(&self) -> Element<'_, Message> {
         Column::with_children(
             self.content
                 .iter_rows()
@@ -90,6 +134,26 @@ impl Terminalview {
                     .into()
                 })
                 .collect::<Vec<_>>(),
+        )
+        .into()
+    }
+
+    fn debug_view(&self) -> Element<'_, Message> {
+        scrollable(
+            container(Column::with_children(self.debug.messages.iter().map(|message| {
+                text(message.to_string())
+                    .font(Font::MONOSPACE)
+                    .size(14)
+                    .color(TerminalColor::White.foreground_color())
+                    .into()
+            })))
+            .style(|_| {
+                container::Style::default().border(
+                    Border::default()
+                        .color(TerminalColor::White.foreground_color())
+                        .width(2),
+                )
+            }),
         )
         .into()
     }
@@ -116,9 +180,13 @@ impl Terminalview {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         println!("Message: {:?}", message);
+        self.debug.messages.push(message.clone());
         match message {
-            Message::Keyboard(k, _) => {
-                if let Some(sender) = self.sender.clone() {
+            Message::Keyboard(k, modifiers) => {
+                if k == Key::Named(keyboard::key::Named::Enter) && modifiers.command() {
+                    let (_id, debug_window) = iced::window::open(debug_window_settings());
+                    debug_window.map(|id| Message::DebugWindow(id))
+                } else if let Some(sender) = self.sender.clone() {
                     let f = async move {
                         let mut sender = sender;
                         sender
@@ -163,7 +231,13 @@ impl Terminalview {
                 }
             },
             Message::TerminalWindowVisible(id) => {
-                self.terminal_window_id = Some(id);
+                self.windows.insert(id, WindowType::TerminalWindow);
+                // self.terminal_window_id = Some(id);
+                Task::none()
+            }
+            Message::DebugWindow(id) => {
+                self.windows.insert(id, WindowType::DebugWindow);
+                // self.debug_window_id = Some(id);
                 Task::none()
             }
         }
@@ -216,4 +290,8 @@ fn terminal_window_settings() -> Settings {
         decorations: false,
         ..Settings::default()
     }
+}
+
+fn debug_window_settings() -> Settings {
+    Settings::default()
 }
