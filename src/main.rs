@@ -23,8 +23,8 @@ use iced::{
     },
     keyboard::{self, Key, Modifiers},
     widget::{container, text, Column, Row},
-    window::{Id, Settings},
-    Border, Element, Font, Shadow, Subscription, Task,
+    window::{settings::PlatformSpecific, Id, Settings},
+    Border, Element, Font, Padding, Shadow, Subscription, Task,
 };
 use structs::{
     cell::{Cell, CellStyle},
@@ -130,6 +130,12 @@ impl Terminalview {
                 })
                 .collect::<Vec<_>>(),
         )
+        .padding(Padding {
+            top: 25.0,
+            left: 5.0,
+            bottom: 5.0,
+            right: 5.0,
+        })
         .into()
     }
 
@@ -217,7 +223,7 @@ impl Terminalview {
                     }
 
                     _ => {
-                        println!("{:?}", code);
+                        println!("Unknown escape code: {:?}", code);
                     }
                 },
             }
@@ -244,7 +250,12 @@ fn create_winsize(size: TerminalSize) -> Winsize {
 
 fn terminal_window_settings() -> Settings {
     Settings {
-        decorations: false,
+        decorations: true,
+        platform_specific: PlatformSpecific {
+            title_hidden: true,
+            titlebar_transparent: true,
+            fullsize_content_view: true,
+        },
         ..Settings::default()
     }
 }
