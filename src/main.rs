@@ -8,20 +8,23 @@ mod terminal {
     pub mod colors;
     pub mod term;
 }
+mod debug {
+    pub mod view;
+}
 
 use std::collections::BTreeMap;
 
 use ansi_parser::AnsiParser;
+use debug::view::DebugState;
 use iced::{
-    border,
     futures::{
         channel::mpsc::{self},
         SinkExt,
     },
     keyboard::{self, Key, Modifiers},
-    widget::{container, scrollable, text, Column, Container, Row},
+    widget::{container, text, Column, Row},
     window::{Id, Settings},
-    Border, Element, Font, Length, Shadow, Subscription, Task,
+    Border, Element, Font, Shadow, Subscription, Task,
 };
 use structs::{
     cell::{Cell, CellStyle},
@@ -38,29 +41,19 @@ fn main() -> iced::Result {
         .run_with(Terminalview::new)
 }
 
-struct Terminalview {
+pub struct Terminalview {
     size: TerminalSize,
     cursor: Cursor,
     content: Grid<Cell>,
     current_cell_style: CellStyle,
     sender: Option<mpsc::Sender<terminal::term::TermMessage>>,
     windows: BTreeMap<Id, WindowType>,
-    debug: DebugState,
+    debug: DebugState<Message>,
 }
 
 enum WindowType {
     TerminalWindow,
     DebugWindow,
-}
-
-struct DebugState {
-    messages: Vec<Message>,
-}
-
-impl Default for DebugState {
-    fn default() -> Self {
-        Self { messages: vec![] }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -70,16 +63,18 @@ pub enum Message {
     TerminalOutput(terminal::term::Event),
     TerminalWindowVisible(Id),
     DebugWindow(Id),
+    ShowMessage(Box<Message>),
 }
 
 impl Message {
-    fn to_string(&self) -> &str {
+    fn name(&self) -> &str {
         match self {
             Message::TerminalInput => "TerminalInput",
             Message::Keyboard(_key, _modifiers) => "Keyboard(key, modifiers)",
-            Message::TerminalOutput(_event) => "Term(event)",
+            Message::TerminalOutput(_event) => "TerminalOutput(event)",
             Message::TerminalWindowVisible(_id) => "TerminalWindowVisible(id)",
             Message::DebugWindow(_id) => "DebugWindow(id)",
+            Message::ShowMessage(_message) => "ShowMessage(message)",
         }
     }
 }
@@ -134,26 +129,6 @@ impl Terminalview {
                     .into()
                 })
                 .collect::<Vec<_>>(),
-        )
-        .into()
-    }
-
-    fn debug_view(&self) -> Element<'_, Message> {
-        scrollable(
-            container(Column::with_children(self.debug.messages.iter().map(|message| {
-                text(message.to_string())
-                    .font(Font::MONOSPACE)
-                    .size(14)
-                    .color(TerminalColor::White.foreground_color())
-                    .into()
-            })))
-            .style(|_| {
-                container::Style::default().border(
-                    Border::default()
-                        .color(TerminalColor::White.foreground_color())
-                        .width(2),
-                )
-            }),
         )
         .into()
     }
@@ -238,6 +213,10 @@ impl Terminalview {
             Message::DebugWindow(id) => {
                 self.windows.insert(id, WindowType::DebugWindow);
                 // self.debug_window_id = Some(id);
+                Task::none()
+            }
+            Message::ShowMessage(message) => {
+                self.debug.selected = Some(*message);
                 Task::none()
             }
         }
