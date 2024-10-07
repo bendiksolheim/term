@@ -67,7 +67,7 @@ impl Default for DebugState {
 pub enum Message {
     TerminalInput,
     Keyboard(Key, Modifiers),
-    Term(terminal::term::Event),
+    TerminalOutput(terminal::term::Event),
     TerminalWindowVisible(Id),
     DebugWindow(Id),
 }
@@ -77,7 +77,7 @@ impl Message {
         match self {
             Message::TerminalInput => "TerminalInput",
             Message::Keyboard(_key, _modifiers) => "Keyboard(key, modifiers)",
-            Message::Term(_event) => "Term(event)",
+            Message::TerminalOutput(_event) => "Term(event)",
             Message::TerminalWindowVisible(_id) => "TerminalWindowVisible(id)",
             Message::DebugWindow(_id) => "DebugWindow(id)",
         }
@@ -200,7 +200,7 @@ impl Terminalview {
                 }
             }
             Message::TerminalInput => Task::none(),
-            Message::Term(term_event) => match term_event {
+            Message::TerminalOutput(term_event) => match term_event {
                 terminal::term::Event::Ready(sender) => {
                     self.sender = Some(sender);
                     Task::none()
@@ -271,7 +271,8 @@ impl Terminalview {
     fn subscription(&self) -> Subscription<Message> {
         let keypress = keyboard::on_key_press(|key, modifier| Some(Message::Keyboard(key, modifier)));
         let winsize = create_winsize(self.size);
-        let term_sub = Subscription::run_with_id(12345, terminal::term::Term::spawn(winsize)).map(Message::Term);
+        let term_sub =
+            Subscription::run_with_id(12345, terminal::term::Term::spawn(winsize)).map(Message::TerminalOutput);
         iced::Subscription::batch([term_sub, keypress])
     }
 }
