@@ -5,12 +5,12 @@ pub struct Cursor {
 }
 
 impl Cursor {
-    pub fn left(&mut self) {
-        self.col = self.col - 1;
+    pub fn left(&mut self, steps: usize) {
+        self.col = self.col - steps;
     }
 
-    pub fn right(&mut self) {
-        self.col = self.col + 1;
+    pub fn right(&mut self, steps: usize) {
+        self.col = self.col + steps;
     }
 
     pub fn up(&mut self) {

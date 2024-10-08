@@ -182,7 +182,7 @@ impl Terminalview {
                                 self.cursor.col = 0;
                             }
                             Output::Backspace => {
-                                self.cursor.left();
+                                self.cursor.left(1);
                             }
                         }
                     }
@@ -211,7 +211,7 @@ impl Terminalview {
                 ansi_parser::Output::TextBlock(text) => text.chars().for_each(|c| {
                     self.content[self.cursor].content = c;
                     self.content[self.cursor].style = self.current_cell_style;
-                    self.cursor.right();
+                    self.cursor.right(1);
                 }),
                 ansi_parser::Output::Escape(code) => match code {
                     ansi_parser::AnsiSequence::SetGraphicsMode(color) => {
