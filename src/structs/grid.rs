@@ -3,7 +3,7 @@ use std::ops::{Index, IndexMut};
 
 #[derive(Debug, Clone)]
 pub struct Grid<T> {
-    rows: usize,
+    _rows: usize,
     cols: usize,
     data: Vec<T>,
 }
@@ -11,7 +11,11 @@ pub struct Grid<T> {
 impl<T: Clone + Default> Grid<T> {
     pub fn new(rows: usize, cols: usize, data: Vec<T>) -> Self {
         assert_eq!(rows * cols, data.len());
-        Self { rows, cols, data }
+        Self {
+            _rows: rows,
+            cols,
+            data,
+        }
     }
 
     pub fn iter_rows(&self) -> impl Iterator<Item = &[T]> {
