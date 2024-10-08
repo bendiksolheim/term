@@ -183,7 +183,6 @@ impl Terminalview {
                             }
                             Output::Backspace => {
                                 self.cursor.left();
-                                self.content[self.cursor] = Cell::default();
                             }
                         }
                     }
