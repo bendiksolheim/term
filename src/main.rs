@@ -215,10 +215,19 @@ impl Terminalview {
                 }),
                 ansi_parser::Output::Escape(code) => match code {
                     ansi_parser::AnsiSequence::SetGraphicsMode(color) => {
+                        // We only have a foreground color
                         if color.len() == 1 {
                             let term_color = TerminalColor::parse_ansi(color[0]);
                             self.current_cell_style.foreground = term_color;
                         }
+                    }
+
+                    ansi_parser::AnsiSequence::CursorForward(n) => {
+                        self.cursor.right(usize::try_from(n).unwrap());
+                    }
+
+                    ansi_parser::AnsiSequence::CursorBackward(n) => {
+                        self.cursor.left(usize::try_from(n).unwrap());
                     }
 
                     _ => {
