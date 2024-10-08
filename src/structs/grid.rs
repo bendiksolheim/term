@@ -18,22 +18,16 @@ impl<T: Clone + Default> Grid<T> {
         }
     }
 
+    // Iterate grid row by row
     pub fn iter_rows(&self) -> impl Iterator<Item = &[T]> {
         self.data.chunks(self.cols)
     }
 
+    // Removes first row and appends empty row last, in effect moving all lines up one row
     pub fn shift_row(&mut self) {
         let len = self.data.len();
         self.data.rotate_left(self.cols);
         self.data[len - self.cols..].fill(T::default());
-    }
-}
-
-impl<T> Index<(usize, usize)> for Grid<T> {
-    type Output = T;
-
-    fn index(&self, index: (usize, usize)) -> &Self::Output {
-        &self.data[index.0 * self.cols + index.1]
     }
 }
 
@@ -42,12 +36,6 @@ impl<T> Index<Cursor> for Grid<T> {
 
     fn index(&self, index: Cursor) -> &Self::Output {
         &self.data[index.row * self.cols + index.col]
-    }
-}
-
-impl<T> IndexMut<(usize, usize)> for Grid<T> {
-    fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
-        &mut self.data[index.0 * self.cols + index.1]
     }
 }
 
