@@ -84,7 +84,7 @@ impl Terminalview {
         let (id, terminal_window) = iced::window::open(terminal_window_settings());
         let mut windows = BTreeMap::new();
         windows.insert(id, WindowType::TerminalWindow);
-        let size = TerminalSize { cols: 121, rows: 42 };
+        let size = TerminalSize { cols: 120, rows: 40 };
         let content = Grid::new(size.rows, size.cols, vec![Cell::default(); size.rows * size.cols]);
         let model = Self {
             size,
