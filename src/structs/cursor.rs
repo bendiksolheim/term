@@ -13,7 +13,7 @@ impl Cursor {
         self.col = self.col + steps;
     }
 
-    pub fn up(&mut self) {
+    pub fn _up(&mut self) {
         self.row = self.row - 1;
     }
 
