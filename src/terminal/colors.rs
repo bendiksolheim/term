@@ -58,18 +58,4 @@ impl TerminalColor {
             TerminalColor::Default => Color::from_rgba(0.0, 0.0, 0.0, 0.0),
         }
     }
-
-    pub fn parse_ansi(color: u8) -> Self {
-        match color {
-            30 | 40 => TerminalColor::Black,
-            31 | 41 => TerminalColor::Red,
-            32 | 42 => TerminalColor::Green,
-            33 | 43 => TerminalColor::Yellow,
-            34 | 44 => TerminalColor::Blue,
-            35 | 45 => TerminalColor::Magenta,
-            36 | 46 => TerminalColor::Cyan,
-            37 | 47 => TerminalColor::White,
-            _ => TerminalColor::Default,
-        }
-    }
 }

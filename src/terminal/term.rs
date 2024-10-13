@@ -104,7 +104,7 @@ fn read_output(master: &OwnedFd, mut sender: Sender<Event>) {
 
     let _a = async_std::task::spawn(async move {
         std::io::stdout().flush().unwrap();
-        let mut buffer = [0u8; 1024];
+        let mut buffer = [0u8; 2048];
         let mut file = File::from(master_clone);
         loop {
             async_std::task::sleep(Duration::from_millis(16)).await;
@@ -112,7 +112,6 @@ fn read_output(master: &OwnedFd, mut sender: Sender<Event>) {
                 Ok(0) => break,
                 Ok(num_bytes) => {
                     let read_bytes = buffer[..num_bytes].to_vec();
-                    // println!("Bytes: {:?}", read_bytes);
 
                     let mut byte_sequence: Vec<u8> = vec![];
                     let mut output: Vec<Output> = vec![];
@@ -168,7 +167,8 @@ fn read_output(master: &OwnedFd, mut sender: Sender<Event>) {
 
 fn spawn_shell(slave: &OwnedFd, shell: &str) -> io::Result<Child> {
     let mut command = Command::new(shell);
-    command.env("TERM", "dumb");
+    command.env("TERM", "xterm");
+    // command.env("TERM", "dumb");
     command.stdin(slave.try_clone()?);
     command.stdout(slave.try_clone()?);
     command.stderr(slave.try_clone()?);

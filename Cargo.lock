@@ -99,8 +99,6 @@ dependencies = [
 [[package]]
 name = "ansi-parser"
 version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c43e7fd8284f025d0bd143c2855618ecdf697db55bde39211e5c9faec7669173"
 dependencies = [
  "heapless",
  "nom",

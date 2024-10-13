@@ -6,6 +6,7 @@ mod structs {
 }
 mod terminal {
     pub mod colors;
+    pub mod graphics;
     pub mod term;
 }
 mod debug {
@@ -24,12 +25,12 @@ use iced::{
     keyboard::{self, Key, Modifiers},
     widget::{container, text, Column, Row},
     window::{settings::PlatformSpecific, Id, Settings},
-    Border, Element, Font, Padding, Shadow, Subscription, Task,
+    Element, Font, Padding, Subscription, Task,
 };
 use structs::{
     cell::{Cell, CellStyle},
     cursor::Cursor,
-    grid::Grid,
+    grid::{Grid, Selection},
     terminalsize::TerminalSize,
 };
 use terminal::colors::TerminalColor;
@@ -118,12 +119,7 @@ impl Terminalview {
                     Row::with_children(
                         row.iter()
                             .enumerate()
-                            .map(|(x, cell)| {
-                                let style = calculate_cell_style(&self.cursor, x, y, cell);
-                                container(text(cell.content.to_string()).font(Font::MONOSPACE).size(14))
-                                    .style(move |_| style)
-                                    .into()
-                            })
+                            .map(|(x, cell)| cell_view(&self.cursor, x, y, cell))
                             .collect::<Vec<_>>(),
                     )
                     .into()
@@ -210,16 +206,13 @@ impl Terminalview {
             match block {
                 ansi_parser::Output::TextBlock(text) => text.chars().for_each(|c| {
                     self.content[self.cursor].content = c;
-                    self.content[self.cursor].style = self.current_cell_style;
+                    self.content[self.cursor].style = self.current_cell_style.clone();
                     self.cursor.right(1);
                 }),
                 ansi_parser::Output::Escape(code) => match code {
-                    ansi_parser::AnsiSequence::SetGraphicsMode(color) => {
-                        // We only have a foreground color
-                        if color.len() == 1 {
-                            let term_color = TerminalColor::parse_ansi(color[0]);
-                            self.current_cell_style.foreground = term_color;
-                        }
+                    ansi_parser::AnsiSequence::SetGraphicsMode(styles) => {
+                        self.current_cell_style.modify(styles.into_iter().collect());
+                        // self.current_cell_style = CellStyle::parse(styles.into_iter().collect())
                     }
 
                     ansi_parser::AnsiSequence::CursorForward(n) => {
@@ -228,6 +221,10 @@ impl Terminalview {
 
                     ansi_parser::AnsiSequence::CursorBackward(n) => {
                         self.cursor.left(usize::try_from(n).unwrap());
+                    }
+
+                    ansi_parser::AnsiSequence::EraseLine => {
+                        self.content.clear_selection(Selection::ToEndOfLine(self.cursor));
                     }
 
                     _ => {
@@ -272,22 +269,30 @@ fn debug_window_settings() -> Settings {
     Settings::default()
 }
 
-fn calculate_cell_style(cursor: &Cursor, x: usize, y: usize, cell: &Cell) -> container::Style {
+fn cell_view<'a>(cursor: &Cursor, x: usize, y: usize, cell: &Cell) -> Element<'a, Message> {
     let style = if cursor.col == x && cursor.row == y {
-        CellStyle {
-            foreground: TerminalColor::Black,
-            background: TerminalColor::White,
-        }
+        let mut clone = cell.style.clone();
+        clone.background = TerminalColor::White;
+        clone.foreground = TerminalColor::Black;
+        clone
     } else {
-        cell.style
+        cell.style.clone()
     };
 
-    container::Style {
-        text_color: Some(style.foreground.foreground_color()),
-        background: Some(iced::Background::Color(style.background.background_color())),
-        border: Border::default()
-            .color(TerminalColor::Green.foreground_color())
-            .width(0),
-        shadow: Shadow::default(),
-    }
+    let container_style = container::Style {
+        // TODO: Do I really need to clone here?
+        text_color: Some(style.clone().foreground_color().foreground_color()),
+        background: Some(iced::Background::Color(style.background_color().background_color())),
+        ..Default::default()
+    };
+
+    let text = text(cell.content.to_string()).size(14).font(Font {
+        family: iced::font::Family::Monospace,
+        weight: iced::font::Weight::Normal, // TODO: actually handle font weights
+        ..Font::default()
+    });
+
+    // TODO: Handle underline, strikethrough
+
+    container(text).style(move |_| container_style).into()
 }
