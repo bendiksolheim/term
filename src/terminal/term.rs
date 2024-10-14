@@ -104,65 +104,92 @@ fn read_output(master: &OwnedFd, mut sender: Sender<Event>) {
 
     let _a = async_std::task::spawn(async move {
         std::io::stdout().flush().unwrap();
-        let mut buffer = [0u8; 2048];
+        let mut buffer = [0u8; 1024];
         let mut file = File::from(master_clone);
+        let mut accumulated: Vec<u8> = vec![];
         loop {
             async_std::task::sleep(Duration::from_millis(16)).await;
             match file.read(&mut buffer) {
                 Ok(0) => break,
                 Ok(num_bytes) => {
-                    let read_bytes = buffer[..num_bytes].to_vec();
-
-                    let mut byte_sequence: Vec<u8> = vec![];
-                    let mut output: Vec<Output> = vec![];
-                    for byte in read_bytes.iter() {
-                        match byte {
-                            b'\x08' => {
-                                if byte_sequence.len() > 0 {
-                                    let _s = byte_sequence.drain(0..).collect();
-                                    let str_sequence = String::from_utf8(_s).unwrap();
-                                    output.push(Output::Text(str_sequence));
-                                }
-                                output.push(Output::Backspace);
-                            }
-                            b'\n' => {
-                                if byte_sequence.len() > 0 {
-                                    let _s = byte_sequence.drain(0..).collect();
-                                    let str_sequence = String::from_utf8(_s).unwrap();
-                                    output.push(Output::Text(str_sequence));
-                                }
-                                output.push(Output::NewLine);
-                            }
-                            b'\r' => {
-                                if byte_sequence.len() > 0 {
-                                    let _s = byte_sequence.drain(0..).collect();
-                                    let str_sequence = String::from_utf8(_s).unwrap();
-                                    output.push(Output::Text(str_sequence));
-                                }
-                                output.push(Output::CarriageReturn);
-                            }
-                            b => {
-                                byte_sequence.push(*b);
-                            }
-                        }
-                    }
-
-                    // Any bytes left? Push them
-                    let _s = String::from_utf8(byte_sequence).unwrap();
-                    output.push(Output::Text(_s));
-
-                    sender.send(Event::Output(output)).await.unwrap();
+                    let mut read_bytes = buffer[..num_bytes].to_vec();
+                    accumulated.append(&mut read_bytes);
                 }
 
                 Err(e) => {
                     // WouldBlock is expected when there is no input
                     if e.kind() != ErrorKind::WouldBlock {
                         eprint!("Error reading from PTY: {:?}", e)
+                    } else {
+                        if accumulated.len() > 0 {
+                            let mut byte_sequence: Vec<u8> = vec![];
+                            let mut output: Vec<Output> = vec![];
+                            for byte in accumulated.iter() {
+                                match byte {
+                                    b'\x08' => {
+                                        if byte_sequence.len() > 0 {
+                                            let _s = byte_sequence.drain(0..).collect();
+                                            let str_sequence = String::from_utf8(_s).unwrap();
+                                            output.push(Output::Text(str_sequence));
+                                        }
+                                        output.push(Output::Backspace);
+                                    }
+                                    b'\n' => {
+                                        if byte_sequence.len() > 0 {
+                                            let _s = byte_sequence.drain(0..).collect();
+                                            let str_sequence = String::from_utf8(_s).unwrap();
+                                            output.push(Output::Text(str_sequence));
+                                        }
+                                        output.push(Output::NewLine);
+                                    }
+                                    b'\r' => {
+                                        if byte_sequence.len() > 0 {
+                                            let _s = byte_sequence.drain(0..).collect();
+                                            let str_sequence = String::from_utf8(_s).unwrap();
+                                            output.push(Output::Text(str_sequence));
+                                        }
+                                        output.push(Output::CarriageReturn);
+                                    }
+                                    b => {
+                                        byte_sequence.push(*b);
+                                    }
+                                }
+                            }
+                            let _s = String::from_utf8(byte_sequence.clone()).unwrap();
+                            output.push(Output::Text(_s));
+                            sender.send(Event::Output(output.clone())).await.unwrap();
+                            accumulated.clear();
+                        }
                     }
                 }
             }
         }
     });
+}
+
+struct PtyReader<R: Read> {
+    inner: R,
+    buffer: Vec<u8>,
+}
+
+impl<R: Read> PtyReader<R> {
+    fn new(inner: R) -> Self {
+        Self {
+            inner,
+            buffer: Vec::new(),
+        }
+    }
+
+    fn read_chunk(&mut self) -> std::io::Result<()> {
+        let mut chunk = [0u8; 1024];
+        let n = self.inner.read(&mut chunk)?;
+        self.buffer.extend_from_slice(&chunk[..n]);
+        Ok(())
+    }
+
+    fn process_buffer(&mut self) {
+        self.buffer.drain(..);
+    }
 }
 
 fn spawn_shell(slave: &OwnedFd, shell: &str) -> io::Result<Child> {

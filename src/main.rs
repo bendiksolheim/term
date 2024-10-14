@@ -212,7 +212,6 @@ impl Terminalview {
                 ansi_parser::Output::Escape(code) => match code {
                     ansi_parser::AnsiSequence::SetGraphicsMode(styles) => {
                         self.current_cell_style.modify(styles.into_iter().collect());
-                        // self.current_cell_style = CellStyle::parse(styles.into_iter().collect())
                     }
 
                     ansi_parser::AnsiSequence::CursorForward(n) => {
@@ -225,6 +224,18 @@ impl Terminalview {
 
                     ansi_parser::AnsiSequence::EraseLine => {
                         self.content.clear_selection(Selection::ToEndOfLine(self.cursor));
+                    }
+
+                    ansi_parser::AnsiSequence::EraseDisplay(n) => {
+                        self.content.clear_selection(Selection::ToEndOfDisplay(self.cursor));
+                    }
+
+                    ansi_parser::AnsiSequence::EnableBracketedPasteMode => {
+                        // TODO: Must be implemented before pasting
+                    }
+
+                    ansi_parser::AnsiSequence::DisableBracketedPasteMode => {
+                        // TODO: Must be implemented before pasting
                     }
 
                     _ => {

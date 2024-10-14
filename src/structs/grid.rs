@@ -33,12 +33,17 @@ impl<T: Clone + Default> Grid<T> {
     pub fn clear_selection(&mut self, selection: Selection) {
         match selection {
             Selection::Line(_cursor) => todo!(),
+            Selection::FromStartOfLine(_cursor) => todo!(),
             Selection::ToEndOfLine(cursor) => {
                 let from = cursor.row * self.cols + cursor.col;
                 let to = (cursor.row + 1) * self.cols;
                 self[from..to].fill(T::default());
             }
-            Selection::FromStartOfLine(_cursor) => todo!(),
+            Selection::ToEndOfDisplay(cursor) => {
+                let from = cursor.row * self.cols + cursor.col;
+                let to = self.data.len();
+                self[from..to].fill(T::default());
+            }
         }
     }
 }
@@ -73,6 +78,7 @@ impl<T> Index<std::ops::Range<usize>> for Grid<T> {
 
 pub enum Selection {
     Line(Cursor),
-    ToEndOfLine(Cursor),
     FromStartOfLine(Cursor),
+    ToEndOfLine(Cursor),
+    ToEndOfDisplay(Cursor),
 }
