@@ -7,7 +7,9 @@ mod structs {
 mod terminal {
     pub mod colors;
     pub mod graphics;
+    pub mod pty_reader;
     pub mod term;
+    pub mod terminal_output;
 }
 mod debug {
     pub mod view;
@@ -33,8 +35,8 @@ use structs::{
     grid::{Grid, Selection},
     terminalsize::TerminalSize,
 };
-use terminal::colors::TerminalColor;
-use terminal::term::{Output, Winsize};
+use terminal::term::Winsize;
+use terminal::{colors::TerminalColor, terminal_output::TerminalOutput};
 
 fn main() -> iced::Result {
     iced::daemon("Terminal", Terminalview::update, Terminalview::view)
@@ -164,20 +166,20 @@ impl Terminalview {
                 terminal::term::Event::Output(output) => {
                     for token in output {
                         match token {
-                            Output::Text(s) => {
+                            TerminalOutput::Text(s) => {
                                 self.handle_ansi(&s);
                             }
-                            Output::NewLine => {
+                            TerminalOutput::NewLine => {
                                 if self.cursor.row == self.size.rows - 1 {
                                     self.content.shift_row();
                                 } else {
                                     self.cursor.down();
                                 }
                             }
-                            Output::CarriageReturn => {
+                            TerminalOutput::CarriageReturn => {
                                 self.cursor.col = 0;
                             }
-                            Output::Backspace => {
+                            TerminalOutput::Backspace => {
                                 self.cursor.left(1);
                             }
                         }
