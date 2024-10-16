@@ -1,5 +1,7 @@
 # term
 
+![term](term.png)
+
 A toy terminal emulator. Implemented to understand how these things actually work.
 Written in Rust, with [iced](https://iced.rs).
 
