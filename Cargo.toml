@@ -10,4 +10,4 @@ strip-ansi-escapes = "0.2.0"
 async-std = "1.13.0"
 iced = "0.13.1"
 # ansi-parser = "0.9.1"
-ansi-parser = { path = "../ansi-parser"}
+ansi-parser = { git = "https://gitlab.com/bendiksolheim/ansi-parser.git" }

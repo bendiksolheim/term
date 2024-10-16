@@ -99,6 +99,7 @@ dependencies = [
 [[package]]
 name = "ansi-parser"
 version = "0.9.1"
+source = "git+https://gitlab.com/bendiksolheim/ansi-parser.git#b04e35d83dd6d86bbed337be89e005e9cf654a56"
 dependencies = [
  "heapless",
  "nom",
