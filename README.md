@@ -1,12 +1,9 @@
 # term
 
-Created with Create GPUI App.
-
-- [`gpui`](https://www.gpui.rs/)
-- [GPUI documentation](https://github.com/zed-industries/zed/tree/main/crates/gpui/docs)
-- [GPUI examples](https://github.com/zed-industries/zed/tree/main/crates/gpui/examples)
+A toy terminal emulator. Implemented to understand how these things actually work.
+Written in Rust, with [iced](https://iced.rs).
 
 ## Usage
 
-- Ensure Rust is installed - [Rustup](https://rustup.rs/)
-- Run your app with `cargo run`
+- Install Rust - [Rustup](https://rustup.rs/)
+- Run with `cargo run`
