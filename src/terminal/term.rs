@@ -48,6 +48,10 @@ impl Term {
                             iced::keyboard::key::Named::Enter => send(&master, "\r"),
                             iced::keyboard::key::Named::Space => send(&master, " "),
                             iced::keyboard::key::Named::Backspace => send(&master, "\x7f"),
+                            iced::keyboard::key::Named::ArrowUp => send(&master, "\x1b[A"),
+                            iced::keyboard::key::Named::ArrowDown => send(&master, "\x1b[B"),
+                            iced::keyboard::key::Named::ArrowRight => send(&master, "\x1b[C"),
+                            iced::keyboard::key::Named::ArrowLeft => send(&master, "\x1b[D"),
                             _ => {}
                         },
                         Key::Character(c) => {
