@@ -45,8 +45,12 @@ fn main() -> iced::Result {
 }
 
 pub struct Terminalview {
+    application_mode: bool,
+    newline_mode: bool,
     size: TerminalSize,
     cursor: Cursor,
+    cursor_visible: bool,
+    saved_cursor_position: Option<Cursor>,
     content: Grid<Cell>,
     current_cell_style: CellStyle,
     sender: Option<mpsc::Sender<terminal::term::TermMessage>>,
@@ -90,8 +94,12 @@ impl Terminalview {
         let size = TerminalSize { cols: 120, rows: 40 };
         let content = Grid::new(size.rows, size.cols, vec![Cell::default(); size.rows * size.cols]);
         let model = Self {
+            application_mode: false,
+            newline_mode: false,
             size,
             cursor: Cursor::default(),
+            cursor_visible: true,
+            saved_cursor_position: None,
             content,
             current_cell_style: CellStyle::default(),
             sender: None,
@@ -173,7 +181,12 @@ impl Terminalview {
                                 if self.cursor.row == self.size.rows - 1 {
                                     self.content.shift_row();
                                 } else {
-                                    self.cursor.down();
+                                    self.cursor.down(1);
+                                }
+
+                                // If terminal is in newline mode, cursor is also moved to start of line
+                                if self.newline_mode {
+                                    self.cursor.col = 0;
                                 }
                             }
                             TerminalOutput::CarriageReturn => {
@@ -212,8 +225,17 @@ impl Terminalview {
                     self.cursor.right(1);
                 }),
                 ansi_parser::Output::Escape(code) => match code {
-                    ansi_parser::AnsiSequence::SetGraphicsMode(styles) => {
-                        self.current_cell_style.modify(styles.into_iter().collect());
+                    ansi_parser::AnsiSequence::CursorPos(row, col) => {
+                        self.cursor
+                            .set_position(row.try_into().unwrap(), col.try_into().unwrap());
+                    }
+
+                    ansi_parser::AnsiSequence::CursorUp(n) => {
+                        self.cursor.up(n.try_into().unwrap());
+                    }
+
+                    ansi_parser::AnsiSequence::CursorDown(n) => {
+                        self.cursor.down(n.try_into().unwrap());
                     }
 
                     ansi_parser::AnsiSequence::CursorForward(n) => {
@@ -224,12 +246,51 @@ impl Terminalview {
                         self.cursor.left(usize::try_from(n).unwrap());
                     }
 
-                    ansi_parser::AnsiSequence::EraseLine => {
-                        self.content.clear_selection(Selection::ToEndOfLine(self.cursor));
+                    ansi_parser::AnsiSequence::CursorSave => {
+                        self.saved_cursor_position = Some(self.cursor.clone());
+                    }
+
+                    ansi_parser::AnsiSequence::CursorRestore => {
+                        if let Some(cursor) = self.saved_cursor_position {
+                            self.cursor = cursor;
+                            self.saved_cursor_position = None;
+                        }
                     }
 
                     ansi_parser::AnsiSequence::EraseDisplay(n) => {
                         self.content.clear_selection(Selection::ToEndOfDisplay(self.cursor));
+                    }
+
+                    ansi_parser::AnsiSequence::EraseLine => {
+                        self.content.clear_selection(Selection::ToEndOfLine(self.cursor));
+                    }
+
+                    ansi_parser::AnsiSequence::SetGraphicsMode(styles) => {
+                        self.current_cell_style.modify(styles.into_iter().collect());
+                    }
+
+                    ansi_parser::AnsiSequence::HideCursor => {
+                        self.cursor_visible = false;
+                    }
+
+                    ansi_parser::AnsiSequence::ShowCursor => {
+                        self.cursor_visible = true;
+                    }
+
+                    ansi_parser::AnsiSequence::CursorToApp => {
+                        self.application_mode = true;
+                    }
+
+                    ansi_parser::AnsiSequence::SetCursorKeyToCursor => {
+                        self.application_mode = false;
+                    }
+
+                    ansi_parser::AnsiSequence::SetNewLineMode => {
+                        self.newline_mode = true;
+                    }
+
+                    ansi_parser::AnsiSequence::SetLineFeedMode => {
+                        self.newline_mode = false;
                     }
 
                     ansi_parser::AnsiSequence::EnableBracketedPasteMode => {
