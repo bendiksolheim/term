@@ -267,7 +267,7 @@ impl Terminalview {
                     }
 
                     ansi_parser::AnsiSequence::SetGraphicsMode(styles) => {
-                        self.current_cell_style.modify(styles.into_iter().collect());
+                        self.current_cell_style.modify(&styles);
                     }
 
                     ansi_parser::AnsiSequence::HideCursor => {

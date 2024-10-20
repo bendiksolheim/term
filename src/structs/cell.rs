@@ -62,22 +62,45 @@ impl CellStyle {
         }
     }
 
-    pub fn modify(&mut self, attributes: Vec<u8>) {
-        let sgr: Vec<Graphics> = attributes.iter().map(|a| Graphics::parse_ansi(a)).collect();
-        for attr in sgr {
-            match attr {
-                Graphics::Reset => *self = Self::default(),
-                Graphics::Bold => self.weight = FontWeight::Bold,
-                Graphics::Dim => self.weight = FontWeight::Dim,
-                Graphics::Italic => self.italic = true,
-                Graphics::Underline => self.underline = true,
-                Graphics::ReverseVideo => self.reversed = true,
-                Graphics::Strikethrough => self.strikethrough = true,
-                Graphics::NotUnderlined => self.underline = false,
-                Graphics::NotReversed => self.reversed = false,
-                Graphics::SetForeground(color) => self.foreground = color,
-                Graphics::SetBackground(color) => self.background = color,
+    pub fn modify(&mut self, attributes: &[u8]) {
+        match attributes[..] {
+            [] => {
+                // do nothing, every attribute is consumed
             }
+
+            [38, 5, n, ref rest @ ..] => {
+                // parse 8 bit color, set as foreground
+                self.parse_attribute(Graphics::SetForeground(TerminalColor::EightBit(n)));
+                self.modify(rest);
+            }
+
+            [48, 5, n, ref rest @ ..] => {
+                // parse 8 bit color, set as background
+                self.parse_attribute(Graphics::SetBackground(TerminalColor::EightBit(n)));
+                self.modify(rest);
+            }
+
+            [n, ref rest @ ..] => {
+                self.parse_attribute(Graphics::parse_ansi(&n));
+                self.modify(rest);
+            }
+        }
+    }
+
+    fn parse_attribute(&mut self, attr: Graphics) {
+        match attr {
+            Graphics::Reset => *self = Self::default(),
+            Graphics::Bold => self.weight = FontWeight::Bold,
+            Graphics::Dim => self.weight = FontWeight::Dim,
+            Graphics::Italic => self.italic = true,
+            Graphics::Underline => self.underline = true,
+            Graphics::ReverseVideo => self.reversed = true,
+            Graphics::Strikethrough => self.strikethrough = true,
+            Graphics::SetFont(_font) => {}
+            Graphics::NotUnderlined => self.underline = false,
+            Graphics::NotReversed => self.reversed = false,
+            Graphics::SetForeground(color) => self.foreground = color,
+            Graphics::SetBackground(color) => self.background = color,
         }
     }
 }

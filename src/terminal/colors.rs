@@ -11,6 +11,7 @@ pub enum TerminalColor {
     Cyan,
     White,
     Default,
+    EightBit(u8),
 }
 
 impl Default for TerminalColor {
@@ -42,6 +43,7 @@ impl TerminalColor {
             TerminalColor::Cyan => Color::from_rgb(0.545, 0.835, 0.792),
             TerminalColor::White => Color::from_rgb(0.722, 0.753, 0.878),
             TerminalColor::Default => Color::from_rgb(1.0, 1.0, 1.0),
+            TerminalColor::EightBit(n) => parse_eight_bit_color(n),
         }
     }
 
@@ -56,6 +58,52 @@ impl TerminalColor {
             TerminalColor::Cyan => Color::from_rgb(0.545, 0.835, 0.792),
             TerminalColor::White => Color::from_rgb(0.722, 0.753, 0.878),
             TerminalColor::Default => Color::from_rgba(0.0, 0.0, 0.0, 0.0),
+            TerminalColor::EightBit(n) => parse_eight_bit_color(n),
         }
+    }
+}
+
+fn parse_eight_bit_color(n: &u8) -> Color {
+    match n {
+        // Regular color scheme
+        0 => Color::from_rgb(0.286, 0.302, 0.392),
+        1 => Color::from_rgb(0.929, 0.529, 0.588),
+        2 => Color::from_rgb(0.651, 0.855, 0.584),
+        3 => Color::from_rgb(0.933, 0.831, 0.624),
+        4 => Color::from_rgb(0.541, 0.678, 0.957),
+        5 => Color::from_rgb(0.961, 0.741, 0.902),
+        6 => Color::from_rgb(0.545, 0.835, 0.792),
+        7 => Color::from_rgb(0.722, 0.753, 0.878),
+
+        // Bright colors
+        8 => Color::from_rgb(0.286, 0.302, 0.392),
+        9 => Color::from_rgb(0.929, 0.529, 0.588),
+        10 => Color::from_rgb(0.651, 0.855, 0.584),
+        11 => Color::from_rgb(0.933, 0.831, 0.624),
+        12 => Color::from_rgb(0.541, 0.678, 0.957),
+        13 => Color::from_rgb(0.961, 0.741, 0.902),
+        14 => Color::from_rgb(0.545, 0.835, 0.792),
+        15 => Color::from_rgb(0.722, 0.753, 0.878),
+
+        16..=231 => {
+            let adjusted_code = n - 16;
+            let red = scale_to_256(adjusted_code / 36);
+            let green = scale_to_256((adjusted_code % 36) / 6);
+            let blue = scale_to_256(adjusted_code % 6);
+            Color::from_rgb8(red, green, blue)
+        }
+
+        232..=255 => {
+            let gray = (n - 232) * 10 + 8;
+            Color::from_rgb8(gray, gray, gray)
+        }
+    }
+}
+
+fn scale_to_256(n: u8) -> u8 {
+    if n == 0 {
+        0
+    } else {
+        n * 42 + 55
     }
 }
