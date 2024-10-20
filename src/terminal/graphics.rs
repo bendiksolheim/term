@@ -1,4 +1,5 @@
 use crate::terminal::colors::TerminalColor;
+use crate::terminal::font::Font;
 
 /// Order of values comes from attribute number:
 /// https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_(Select_Graphic_Rendition)_parameters
@@ -11,6 +12,7 @@ pub enum Graphics {
     Underline,
     ReverseVideo,
     Strikethrough,
+    SetFont(Font),
     NotUnderlined,
     NotReversed,
     SetForeground(TerminalColor),
@@ -27,6 +29,7 @@ impl Graphics {
             4 => Self::Underline,
             7 => Self::ReverseVideo,
             9 => Self::Strikethrough,
+            10..=19 => Self::SetFont(Font::Monospace), // TODO: Research how this works
             24 => Self::NotUnderlined,
             27 => Self::NotReversed,
 

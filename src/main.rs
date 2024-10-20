@@ -6,6 +6,7 @@ mod structs {
 }
 mod terminal {
     pub mod colors;
+    pub mod font;
     pub mod graphics;
     pub mod pty_reader;
     pub mod term;
