@@ -29,6 +29,11 @@ static COLOR_MAP: Lazy<HashMap<u8, Color>> = Lazy::new(|| {
             }
         }
     }
+
+    for g in 232..=255 {
+        let gray = (g - 232) * 10 + 8;
+        m.insert(g, Color::from_rgb8(gray, gray, gray));
+    }
     m
 });
 
@@ -93,7 +98,7 @@ fn parse_eight_bit_color(n: &u8) -> Color {
         6 => Color::from_rgb(0.545, 0.835, 0.792),
         7 => Color::from_rgb(0.722, 0.753, 0.878),
 
-        // Bright colors
+        // Bright colors – just using regular colors for now
         8 => Color::from_rgb(0.286, 0.302, 0.392),
         9 => Color::from_rgb(0.929, 0.529, 0.588),
         10 => Color::from_rgb(0.651, 0.855, 0.584),
@@ -103,19 +108,10 @@ fn parse_eight_bit_color(n: &u8) -> Color {
         14 => Color::from_rgb(0.545, 0.835, 0.792),
         15 => Color::from_rgb(0.722, 0.753, 0.878),
 
-        16..=231 => {
-            COLOR_MAP.get(n).unwrap().clone()
-            // let adjusted_code = n - 16;
-            // let red = scale_to_256(adjusted_code / 36);
-            // let green = scale_to_256((adjusted_code % 36) / 6);
-            // let blue = scale_to_256(adjusted_code % 6);
-            // Color::from_rgb8(red, green, blue)
-        }
-
-        232..=255 => {
-            let gray = (n - 232) * 10 + 8;
-            Color::from_rgb8(gray, gray, gray)
-        }
+        16..=255 => COLOR_MAP
+            .get(n)
+            .expect(format!("Expected SGR 8 bit color {} to be precalculated", n).as_str())
+            .clone(),
     }
 }
 
