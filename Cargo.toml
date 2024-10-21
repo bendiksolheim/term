@@ -6,7 +6,6 @@ edition = "2021"
 [dependencies]
 libc = "0.2"
 rustix-openpty = "0.1.1"
-strip-ansi-escapes = "0.2.0"
 async-std = "1.13.0"
 iced = "0.13.1"
 # ansi-parser = "0.9.1"
