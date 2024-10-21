@@ -1,4 +1,6 @@
 use iced::Color;
+use once_cell::sync::Lazy;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy)]
 pub enum TerminalColor {
@@ -13,6 +15,22 @@ pub enum TerminalColor {
     Default,
     EightBit(u8),
 }
+
+static COLOR_MAP: Lazy<HashMap<u8, Color>> = Lazy::new(|| {
+    let mut m = HashMap::new();
+    for r in 0..6 {
+        for g in 0..6 {
+            for b in 0..6 {
+                let code = 16 + 36 * r + 6 * g + b;
+                let red = scale_to_256(r);
+                let green = scale_to_256(g);
+                let blue = scale_to_256(b);
+                m.insert(code, Color::from_rgb8(red, green, blue));
+            }
+        }
+    }
+    m
+});
 
 impl Default for TerminalColor {
     fn default() -> Self {
@@ -86,11 +104,12 @@ fn parse_eight_bit_color(n: &u8) -> Color {
         15 => Color::from_rgb(0.722, 0.753, 0.878),
 
         16..=231 => {
-            let adjusted_code = n - 16;
-            let red = scale_to_256(adjusted_code / 36);
-            let green = scale_to_256((adjusted_code % 36) / 6);
-            let blue = scale_to_256(adjusted_code % 6);
-            Color::from_rgb8(red, green, blue)
+            COLOR_MAP.get(n).unwrap().clone()
+            // let adjusted_code = n - 16;
+            // let red = scale_to_256(adjusted_code / 36);
+            // let green = scale_to_256((adjusted_code % 36) / 6);
+            // let blue = scale_to_256(adjusted_code % 6);
+            // Color::from_rgb8(red, green, blue)
         }
 
         232..=255 => {
@@ -104,6 +123,6 @@ fn scale_to_256(n: u8) -> u8 {
     if n == 0 {
         0
     } else {
-        n * 42 + 55
+        n * 40 + 55
     }
 }
