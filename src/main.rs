@@ -46,8 +46,8 @@ fn main() -> iced::Result {
 }
 
 pub struct Terminalview {
-    application_mode: bool,
-    newline_mode: bool,
+    application_mode: bool, // Changes how cursor keys are coded
+    newline_mode: bool,     // Interprets \n as NL LF instead of just NL
     size: TerminalSize,
     cursor: Cursor,
     cursor_visible: bool,
