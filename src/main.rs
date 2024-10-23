@@ -25,7 +25,7 @@ use iced::{
         channel::mpsc::{self},
         SinkExt,
     },
-    keyboard::{self, Key, Modifiers},
+    keyboard::{self, key::Named, Key},
     widget::{container, text, Column, Row},
     window::{settings::PlatformSpecific, Id, Settings},
     Element, Font, Padding, Subscription, Task,
@@ -59,7 +59,8 @@ pub struct Terminalview {
     debug: DebugState<Message>,
 }
 
-enum WindowType {
+#[derive(Debug, Clone)]
+pub enum WindowType {
     TerminalWindow,
     DebugWindow,
 }
@@ -67,10 +68,10 @@ enum WindowType {
 #[derive(Debug, Clone)]
 pub enum Message {
     TerminalInput,
-    Keyboard(Key, Modifiers),
+    KeyboardBytes(Vec<u8>),
     TerminalOutput(terminal::term::Event),
-    TerminalWindowVisible(Id),
-    DebugWindow(Id),
+    WindowCreated(Id, WindowType),
+    ShowDebugWindow,
     ShowMessage(Box<Message>),
 }
 
@@ -78,10 +79,10 @@ impl Message {
     fn name(&self) -> &str {
         match self {
             Message::TerminalInput => "TerminalInput",
-            Message::Keyboard(_key, _modifiers) => "Keyboard(key, modifiers)",
+            Message::KeyboardBytes(_bytes) => "KeyboardBytes(bytes)",
             Message::TerminalOutput(_event) => "TerminalOutput(event)",
-            Message::TerminalWindowVisible(_id) => "TerminalWindowVisible(id)",
-            Message::DebugWindow(_id) => "DebugWindow(id)",
+            Message::WindowCreated(_id, _window_type) => "WindowCreated(id, window_type)",
+            Message::ShowDebugWindow => "ToggleDebugWindow",
             Message::ShowMessage(_message) => "ShowMessage(message)",
         }
     }
@@ -91,7 +92,7 @@ impl Terminalview {
     fn new() -> (Self, Task<Message>) {
         let (id, terminal_window) = iced::window::open(terminal_window_settings());
         let mut windows = BTreeMap::new();
-        windows.insert(id, WindowType::TerminalWindow);
+        windows.insert(id, WindowType::TerminalWindow); // Needed to render instantly, otherwise we get an initial render delay
         let size = TerminalSize { cols: 120, rows: 40 };
         let content = Grid::new(size.rows, size.cols, vec![Cell::default(); size.rows * size.cols]);
         let model = Self {
@@ -108,7 +109,10 @@ impl Terminalview {
             debug: DebugState::default(),
         };
 
-        (model, terminal_window.map(|id| Message::TerminalWindowVisible(id)))
+        (
+            model,
+            terminal_window.map(|id| Message::WindowCreated(id, WindowType::TerminalWindow)),
+        )
     }
 
     fn view(&self, window: Id) -> Element<'_, Message> {
@@ -149,17 +153,14 @@ impl Terminalview {
     fn update(&mut self, message: Message) -> Task<Message> {
         self.debug.messages.push(message.clone());
         match message {
-            Message::Keyboard(k, modifiers) => {
-                if k == Key::Named(keyboard::key::Named::Enter) && modifiers.command() {
-                    let (_id, debug_window) = iced::window::open(debug_window_settings());
-                    debug_window.map(|id| Message::DebugWindow(id))
-                } else if let Some(sender) = self.sender.clone() {
+            Message::KeyboardBytes(bytes) => {
+                if let Some(sender) = self.sender.clone() {
                     let f = async move {
                         let mut sender = sender;
                         sender
-                            .send(terminal::term::TermMessage::Input(k))
+                            .send(terminal::term::TermMessage::Bytes(bytes))
                             .await
-                            .expect("Could not send TermMessage::Input");
+                            .expect("Could not send TermMessage:Bytes");
                     };
                     Task::perform(f, |_| Message::TerminalInput)
                 } else {
@@ -201,13 +202,13 @@ impl Terminalview {
                     Task::none()
                 }
             },
-            Message::TerminalWindowVisible(id) => {
-                self.windows.insert(id, WindowType::TerminalWindow);
+            Message::WindowCreated(id, window_type) => {
+                self.windows.insert(id, window_type);
                 Task::none()
             }
-            Message::DebugWindow(id) => {
-                self.windows.insert(id, WindowType::DebugWindow);
-                Task::none()
+            Message::ShowDebugWindow => {
+                let (_id, debug_window) = iced::window::open(debug_window_settings());
+                debug_window.map(|id| Message::WindowCreated(id, WindowType::DebugWindow))
             }
             Message::ShowMessage(message) => {
                 self.debug.selected = Some(*message);
@@ -311,11 +312,47 @@ impl Terminalview {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        let keypress = keyboard::on_key_press(|key, modifier| Some(Message::Keyboard(key, modifier)));
+        let tmp = iced::event::listen_with(|event, _status, _window| match event {
+            iced::Event::Keyboard(event) => match event {
+                keyboard::Event::KeyPKressed {
+                    key,
+                    modified_key: _,
+                    physical_key: _,
+                    location: _,
+                    modifiers,
+                    text,
+                } => {
+                    if let Some(char) = text {
+                        if char == "\r" && modifiers.command() {
+                            Some(Message::ShowDebugWindow)
+                        } else {
+                            println!("Char: {:?}", char);
+                            Some(Message::KeyboardBytes(char.as_bytes().to_vec()))
+                        }
+                    } else if let Key::Named(k) = key {
+                        match k {
+                            Named::ArrowUp => Some(Message::KeyboardBytes("\x1b[A".into())),
+                            Named::ArrowDown => Some(Message::KeyboardBytes("\x1b[B".into())),
+                            Named::ArrowRight => Some(Message::KeyboardBytes("\x1b[C".into())),
+                            Named::ArrowLeft => Some(Message::KeyboardBytes("\x1b[D".into())),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                }
+
+                // We dont care about KeyReleased and ModifiersChanged
+                _ => None,
+            },
+            iced::Event::Mouse(_event) => None,
+            iced::Event::Window(_event) => None,
+            iced::Event::Touch(_event) => None,
+        });
         let winsize = create_winsize(self.size);
         let term_sub =
             Subscription::run_with_id(12345, terminal::term::Term::spawn(winsize)).map(Message::TerminalOutput);
-        iced::Subscription::batch([term_sub, keypress])
+        iced::Subscription::batch([tmp, term_sub])
     }
 }
 
