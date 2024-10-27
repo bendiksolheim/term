@@ -1,5 +1,6 @@
 mod structs {
     pub mod cell;
+    pub mod config;
     pub mod cursor;
     pub mod grid;
     pub mod terminalsize;
@@ -28,10 +29,11 @@ use iced::{
     keyboard::{self, key::Named, Key},
     widget::{container, text, Column, Row},
     window::{settings::PlatformSpecific, Id, Settings},
-    Element, Font, Padding, Subscription, Task,
+    Element, Font, Padding, Pixels, Size, Subscription, Task,
 };
 use structs::{
     cell::{Cell, CellStyle},
+    config::Config,
     cursor::Cursor,
     grid::{Grid, Selection},
     terminalsize::TerminalSize,
@@ -40,9 +42,34 @@ use terminal::term::Winsize;
 use terminal::{colors::TerminalColor, terminal_output::TerminalOutput};
 
 fn main() -> iced::Result {
+    let settings = settings();
+    let config = Config {
+        font_size: settings.default_text_size.0,
+        window_size: Size {
+            width: 1024.0,
+            height: 726.0,
+        },
+        window_padding: Padding {
+            top: 25.0,
+            left: 5.0,
+            bottom: 5.0,
+            right: 5.0,
+        },
+    };
     iced::daemon("Terminal", Terminalview::update, Terminalview::view)
+        .settings(settings)
         .subscription(Terminalview::subscription)
-        .run_with(Terminalview::new)
+        .run_with(move || Terminalview::new(config))
+}
+
+fn settings() -> iced::Settings {
+    iced::Settings {
+        id: None,
+        fonts: vec![],
+        default_font: Font::with_name("Iosevka"),
+        default_text_size: 14.0.into(),
+        antialiasing: false,
+    }
 }
 
 pub struct Terminalview {
@@ -57,6 +84,7 @@ pub struct Terminalview {
     sender: Option<mpsc::Sender<terminal::term::TermMessage>>,
     windows: BTreeMap<Id, WindowType>,
     debug: DebugState<Message>,
+    config: Config,
 }
 
 #[derive(Debug, Clone)]
@@ -88,12 +116,25 @@ impl Message {
     }
 }
 
+static CHARACTER_WIDTH_FACTOR: f32 = 1.25; // Found by trial and error
+static CHARACTER_HEIGHT_FACTOR: f32 = 1.3; // Found by trial and error
+
 impl Terminalview {
-    fn new() -> (Self, Task<Message>) {
-        let (id, terminal_window) = iced::window::open(terminal_window_settings());
+    fn new(config: Config) -> (Self, Task<Message>) {
+        let font_measure = measure_text("Iosevka", 'M', config.font_size);
+        let cell_size = Size {
+            width: font_measure.width * CHARACTER_WIDTH_FACTOR,
+            height: font_measure.height * CHARACTER_HEIGHT_FACTOR,
+        };
+        let cols = ((config.window_size.width - (config.window_padding.left + config.window_padding.right))
+            / cell_size.width) as usize;
+        let rows = ((config.window_size.height - (config.window_padding.top + config.window_padding.bottom))
+            / cell_size.height) as usize;
+        // println!("Cols: {:?}, rows: {:?}", cols, rows);
+        let size = TerminalSize { cols, rows };
+        let (id, terminal_window) = iced::window::open(terminal_window_settings(config.window_size));
         let mut windows = BTreeMap::new();
         windows.insert(id, WindowType::TerminalWindow); // Needed to render instantly, otherwise we get an initial render delay
-        let size = TerminalSize { cols: 120, rows: 40 };
         let content = Grid::new(size.rows, size.cols, vec![Cell::default(); size.rows * size.cols]);
         let model = Self {
             application_mode: false,
@@ -107,6 +148,7 @@ impl Terminalview {
             sender: None,
             windows,
             debug: DebugState::default(),
+            config,
         };
 
         (
@@ -141,12 +183,7 @@ impl Terminalview {
                 })
                 .collect::<Vec<_>>(),
         )
-        .padding(Padding {
-            top: 25.0,
-            left: 5.0,
-            bottom: 5.0,
-            right: 5.0,
-        })
+        .padding(self.config.window_padding)
         .into()
     }
 
@@ -314,7 +351,7 @@ impl Terminalview {
     fn subscription(&self) -> Subscription<Message> {
         let tmp = iced::event::listen_with(|event, _status, _window| match event {
             iced::Event::Keyboard(event) => match event {
-                keyboard::Event::KeyPKressed {
+                keyboard::Event::KeyPressed {
                     key,
                     modified_key: _,
                     physical_key: _,
@@ -365,7 +402,7 @@ fn create_winsize(size: TerminalSize) -> Winsize {
     }
 }
 
-fn terminal_window_settings() -> Settings {
+fn terminal_window_settings(size: Size) -> Settings {
     Settings {
         decorations: true,
         platform_specific: PlatformSpecific {
@@ -373,6 +410,7 @@ fn terminal_window_settings() -> Settings {
             titlebar_transparent: true,
             fullsize_content_view: true,
         },
+        size,
         ..Settings::default()
     }
 }
@@ -395,16 +433,48 @@ fn cell_view<'a>(cursor: &Cursor, x: usize, y: usize, cell: &Cell) -> Element<'a
         // TODO: Do I really need to clone here?
         text_color: Some(style.clone().foreground_color().foreground_color()),
         background: Some(iced::Background::Color(style.background_color().background_color())),
+        border: iced::Border::default()
+            .width(Pixels(0.5))
+            .color(TerminalColor::Cyan.foreground_color()),
         ..Default::default()
     };
 
-    let text = text(cell.content.to_string()).size(14).font(Font {
-        family: iced::font::Family::Monospace,
-        weight: iced::font::Weight::Normal, // TODO: actually handle font weights
-        ..Font::default()
-    });
-
+    let text = text(cell.content.to_string())
+        // .width(5.6000004 * 1.25)
+        // .height(14.0 * 1.25)
+        .size(14);
     // TODO: Handle underline, strikethrough
 
     container(text).style(move |_| container_style).into()
+}
+
+fn measure_text(font: &str, text: char, font_size: f32) -> Size {
+    use rusttype::{Font, Scale};
+    let font_data = load_font(font);
+    let font = Font::try_from_bytes(&font_data).unwrap();
+
+    let scale = Scale::uniform(font_size);
+    let v_metrics = font.v_metrics(scale);
+    let line_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
+
+    let glyph = font.glyph(text).scaled(scale);
+    let h_metrics = glyph.h_metrics();
+    println!("left_side_bearing: {:?}", h_metrics.left_side_bearing);
+    let width = h_metrics.advance_width;
+
+    Size {
+        width: width,
+        height: line_height,
+    }
+}
+
+fn load_font(font: &str) -> Vec<u8> {
+    use font_loader::system_fonts;
+    let property = font_loader::system_fonts::FontPropertyBuilder::new()
+        .family(font)
+        .build();
+
+    let (font_data, _) = system_fonts::get(&property).unwrap();
+
+    font_data
 }
