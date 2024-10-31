@@ -1,6 +1,8 @@
+mod config;
+mod font;
+
 mod structs {
     pub mod cell;
-    pub mod config;
     pub mod cursor;
     pub mod grid;
     pub mod terminalsize;
@@ -33,7 +35,6 @@ use iced::{
 };
 use structs::{
     cell::{Cell, CellStyle},
-    config::Config,
     cursor::Cursor,
     grid::{Grid, Selection},
     terminalsize::TerminalSize,
@@ -41,21 +42,11 @@ use structs::{
 use terminal::term::Winsize;
 use terminal::{colors::TerminalColor, terminal_output::TerminalOutput};
 
+use crate::config::Config;
+
 fn main() -> iced::Result {
     let settings = settings();
-    let config = Config {
-        font_size: settings.default_text_size.0,
-        window_size: Size {
-            width: 1024.0,
-            height: 726.0,
-        },
-        window_padding: Padding {
-            top: 25.0,
-            left: 5.0,
-            bottom: 5.0,
-            right: 5.0,
-        },
-    };
+    let config = Config::new();
     iced::daemon("Terminal", Terminalview::update, Terminalview::view)
         .settings(settings)
         .subscription(Terminalview::subscription)
