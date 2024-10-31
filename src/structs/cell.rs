@@ -68,6 +68,18 @@ impl CellStyle {
                 // do nothing, every attribute is consumed
             }
 
+            [38, 2, r, g, b, ref rest @ ..] => {
+                // parse 24 bit color, set as foreground
+                self.parse_attribute(Graphics::SetForeground(TerminalColor::TwentyFourBit(r, g, b)));
+                self.modify(rest);
+            }
+
+            [48, 2, r, g , b, ref rest @ ..] => {
+                // parse 24 bit color, set as background
+                self.parse_attribute(Graphics::SetBackground(TerminalColor::TwentyFourBit(r, g, b)));
+                self.modify(rest);
+            }
+
             [38, 5, n, ref rest @ ..] => {
                 // parse 8 bit color, set as foreground
                 self.parse_attribute(Graphics::SetForeground(TerminalColor::EightBit(n)));

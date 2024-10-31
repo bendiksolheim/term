@@ -14,10 +14,13 @@ pub enum TerminalColor {
     White,
     Default,
     EightBit(u8),
+    TwentyFourBit(u8, u8, u8)
 }
 
 static COLOR_MAP: Lazy<HashMap<u8, Color>> = Lazy::new(|| {
     let mut m = HashMap::new();
+
+    // Generate 8 bit 6 x 6 x 6 color cubes
     for r in 0..6 {
         for g in 0..6 {
             for b in 0..6 {
@@ -30,6 +33,7 @@ static COLOR_MAP: Lazy<HashMap<u8, Color>> = Lazy::new(|| {
         }
     }
 
+    // Generate 8 bit gray values
     for g in 232..=255 {
         let gray = (g - 232) * 10 + 8;
         m.insert(g, Color::from_rgb8(gray, gray, gray));
@@ -67,6 +71,7 @@ impl TerminalColor {
             TerminalColor::White => Color::from_rgb(0.722, 0.753, 0.878),
             TerminalColor::Default => Color::from_rgb(1.0, 1.0, 1.0),
             TerminalColor::EightBit(n) => parse_eight_bit_color(n),
+            TerminalColor::TwentyFourBit(r, g, b) => parse_rgb(r, g, b)
         }
     }
 
@@ -82,6 +87,7 @@ impl TerminalColor {
             TerminalColor::White => Color::from_rgb(0.722, 0.753, 0.878),
             TerminalColor::Default => Color::from_rgba(0.0, 0.0, 0.0, 0.0),
             TerminalColor::EightBit(n) => parse_eight_bit_color(n),
+            TerminalColor::TwentyFourBit(r, g, b) => parse_rgb(r, g, b)
         }
     }
 }
@@ -113,6 +119,10 @@ fn parse_eight_bit_color(n: &u8) -> Color {
             .expect(format!("Expected SGR 8 bit color {} to be precalculated", n).as_str())
             .clone(),
     }
+}
+
+fn parse_rgb(r: &u8, g: &u8, b: &u8) -> Color {
+    Color::from_rgb8(*r, *g, *b)
 }
 
 fn scale_to_256(n: u8) -> u8 {
