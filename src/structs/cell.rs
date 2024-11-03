@@ -1,4 +1,4 @@
-use crate::terminal::{colors::TerminalColor, graphics::Graphics};
+use crate::term::{colors::TerminalColor, graphics::Graphics};
 
 #[derive(Debug, Clone)]
 pub struct Cell {

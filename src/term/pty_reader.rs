@@ -71,6 +71,8 @@ impl<R: Read> PtyReader<R> {
             }
             let _s = String::from_utf8(byte_sequence.clone()).unwrap();
             output.push(TerminalOutput::Text(_s));
+
+            // Buffer is consumed, clear it
             self.buffer.drain(..);
 
             Some(output)

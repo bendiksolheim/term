@@ -1,5 +1,5 @@
-use crate::terminal::colors::TerminalColor;
-use crate::terminal::font::Font;
+use crate::term::colors::TerminalColor;
+use crate::term::font::Font;
 
 /// Order of values comes from attribute number:
 /// https://en.wikipedia.org/wiki/ANSI_escape_code#SGR_(Select_Graphic_Rendition)_parameters

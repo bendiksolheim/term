@@ -10,16 +10,15 @@ impl Font {
 
         let scale = Scale::uniform(font_size);
         let v_metrics = font.v_metrics(scale);
-        let line_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
+        let height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
 
         let glyph = font.glyph(text).scaled(scale);
         let h_metrics = glyph.h_metrics();
-        println!("left_side_bearing: {:?}", h_metrics.left_side_bearing);
         let width = h_metrics.advance_width;
 
         Size {
-            width: width,
-            height: line_height,
+            width,
+            height,
         }
     }
 

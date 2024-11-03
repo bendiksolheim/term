@@ -2,7 +2,7 @@ use iced::futures::{
     channel::mpsc::{self, Sender},
     SinkExt, Stream, StreamExt,
 };
-use libc::TIOCSCTTY;
+use libc::{winsize, TIOCSCTTY, TIOCSWINSZ};
 pub use rustix_openpty::rustix::termios::Winsize;
 use std::{
     fs::File,
@@ -43,6 +43,15 @@ impl Term {
                     TermMessage::Bytes(bytes) => {
                         write_bytes(&master, &bytes);
                     }
+
+                    TermMessage::WindowResized(columns, rows) => match resize(&master, columns, rows) {
+                        Ok(_) => {
+                            println!("Resize successful");
+                        }
+                        Err(err) => {
+                            println!("Error resizing: {:?}", err);
+                        }
+                    },
                 }
             }
         })
@@ -54,15 +63,37 @@ fn write_bytes(mut master: &File, content: &[u8]) {
     master.flush().unwrap();
 }
 
+fn resize(master: &File, columns: usize, rows: usize) -> Result<(), std::io::Error> {
+    let size = winsize {
+        ws_row: rows as u16,
+        ws_col: columns as u16,
+        ws_xpixel: 0,
+        ws_ypixel: 0,
+    };
+    println!("New size in term: {:?}", size);
+
+    let result = unsafe { libc::ioctl(master.as_raw_fd(), TIOCSWINSZ, &size) };
+
+    if result == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
 #[derive(Debug, Clone)]
 pub enum Event {
     Ready(mpsc::Sender<TermMessage>),
     Output(Vec<TerminalOutput>),
 }
 
+type Columns = usize;
+type Rows = usize;
+
 #[derive(Debug, Clone)]
 pub enum TermMessage {
     Bytes(Vec<u8>),
+    WindowResized(Columns, Rows),
 }
 
 struct Pty {
