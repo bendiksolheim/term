@@ -3,6 +3,7 @@ use iced::{
     futures::{channel::mpsc, SinkExt},
     Task,
 };
+use rustix_openpty::rustix::termios::Winsize;
 
 use crate::{
     structs::{
@@ -96,6 +97,7 @@ impl Terminal {
             }
         }
     }
+
     fn handle_ansi(&mut self, ansi_text: &str) {
         let parsed = ansi_text.ansi_parse();
         for block in parsed.into_iter() {
@@ -188,5 +190,24 @@ impl Terminal {
                 },
             }
         }
+    }
+
+    pub fn resize(&mut self, new_size: TerminalSize) -> Task<Message> {
+        self.content.resize(new_size.rows, new_size.cols);
+
+        // Move the cursor if window shrinks
+        if self.cursor.col >= self.content.cols {
+            self.cursor.up(self.cursor.col - self.content.cols);
+        }
+
+        if self.cursor.row >= self.content.rows {
+            self.cursor.left(self.cursor.row - self.content.rows);
+        }
+
+        self.send(TermMessage::WindowResized(new_size.cols, new_size.rows))
+    }
+
+    pub fn winsize(&self) -> Winsize {
+        self.size.winsize()
     }
 }

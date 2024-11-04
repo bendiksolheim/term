@@ -4,7 +4,6 @@ use iced::{
     window::Id,
     Element, Subscription, Task,
 };
-use rustix_openpty::rustix::termios::Winsize;
 
 use crate::{
     config::Config,
@@ -71,26 +70,8 @@ impl Application {
                 if cols_changed || rows_changed {
                     let cols = (self.window.content_width() / self.config.cell_size.width) as usize;
                     let rows = (self.window.content_height() / self.config.cell_size.height) as usize;
-
-                    self.terminal.content.resize(rows, cols);
-                    self.window.size = size;
-
-                    // Move the cursor if window shrinks
-                    if self.terminal.cursor.col >= self.terminal.content.cols {
-                        self.terminal
-                            .cursor
-                            .up(self.terminal.cursor.col - self.terminal.content.cols);
-                    }
-
-                    if self.terminal.cursor.row >= self.terminal.content.rows {
-                        self.terminal
-                            .cursor
-                            .left(self.terminal.cursor.row - self.terminal.content.rows);
-                    }
-
-                    println!("Resized to {:?}:{:?}", cols, rows);
-
-                    self.terminal.send(term::TermMessage::WindowResized(cols, rows))
+                    let new_size = TerminalSize { cols, rows };
+                    self.terminal.resize(new_size)
                 } else {
                     Task::none()
                 }
@@ -134,8 +115,8 @@ impl Application {
             },
             iced::Event::Touch(_event) => None,
         });
-        let winsize = create_winsize(self.terminal.size);
-        let term_sub = Subscription::run_with_id(12345, term::Term::spawn(winsize)).map(Message::TerminalOutput);
+        let term_sub =
+            Subscription::run_with_id(12345, term::Term::spawn(self.terminal.winsize())).map(Message::TerminalOutput);
         iced::Subscription::batch([tmp, term_sub])
     }
 }
@@ -165,13 +146,4 @@ fn cell_view<'a>(cursor: &Cursor, x: usize, y: usize, cell: &Cell, font_size: f3
     // TODO: Handle underline, strikethrough
 
     container(text).style(move |_| container_style).into()
-}
-
-fn create_winsize(size: TerminalSize) -> Winsize {
-    Winsize {
-        ws_col: u16::try_from(size.cols).expect("Terminal is too wide for Winsize"),
-        ws_row: u16::try_from(size.rows).expect("Terminal is too tall for Winsize"),
-        ws_xpixel: 0,
-        ws_ypixel: 0,
-    }
 }

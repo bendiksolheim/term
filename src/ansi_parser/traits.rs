@@ -11,7 +11,6 @@ impl AnsiParser for str {
     }
 }
 
-#[cfg(any(feature = "std", test))]
 impl AnsiParser for String {
     fn ansi_parse(&self) -> AnsiParseIterator<'_> {
         AnsiParseIterator { dat: self }
