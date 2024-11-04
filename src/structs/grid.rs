@@ -157,10 +157,15 @@ mod tests {
 
     #[test]
     fn resizing_to_more_cols_then_fewer_rows_works_correctly() {
-        let mut grid = Grid::new(3, 2, vec![1; 3 * 2]);
-        grid.resize(3, 3);
-        assert_eq!(grid.data, vec![1, 1, 1, 1, 1, 1, 0, 0, 0]);
-        grid.resize(2, 3);
-        assert_eq!(grid.data, vec![1, 1, 1, 1, 1, 1]);
+        let mut grid = Grid::new(1, 2, vec![1; 1 * 2]);
+        grid.resize(2, 2);
+        assert_eq!(grid.data, vec![1, 1, 0, 0]);
+        grid.resize(2, 1);
+        assert_eq!(grid.data, vec![1, 1]);
     }
 }
+
+/*
+1 1
+0 0
+*/

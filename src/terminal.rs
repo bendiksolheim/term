@@ -1,4 +1,4 @@
-use ansi_parser::AnsiParser;
+use crate::ansi_parser::{self, AnsiParser};
 use iced::{futures::{channel::mpsc, SinkExt}, Task};
 
 use crate::{structs::{cell::{Cell, CellStyle}, cursor::Cursor, grid::{Grid, Selection}, terminalsize::TerminalSize}, term::{self, term::{Event, TermMessage}, terminal_output::TerminalOutput}, Message};

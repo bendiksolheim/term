@@ -3,6 +3,7 @@ mod font;
 mod terminal;
 mod window;
 mod application;
+mod ansi_parser;
 
 mod structs {
     pub mod cell;
