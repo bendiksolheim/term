@@ -16,10 +16,7 @@ impl Font {
         let h_metrics = glyph.h_metrics();
         let width = h_metrics.advance_width;
 
-        Size {
-            width,
-            height,
-        }
+        Size { width, height }
     }
 
     fn load_font(font: &str) -> Vec<u8> {

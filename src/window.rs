@@ -1,19 +1,25 @@
-use iced::{window::{settings::PlatformSpecific, Id, Settings}, Padding, Size, Task};
+use iced::{
+    window::{settings::PlatformSpecific, Id, Settings},
+    Padding, Size, Task,
+};
 
 pub struct Window {
     _id: Id,
     pub size: Size,
-    pub padding: Padding
+    pub padding: Padding,
 }
 
 impl Window {
     pub fn main_window(config: WindowConfig) -> (Self, Task<Id>) {
         let (id, task) = iced::window::open(terminal_window_settings(config.size));
-        (Self {
-            _id: id,
-            size: config.size,
-            padding: config.padding
-        }, task)
+        (
+            Self {
+                _id: id,
+                size: config.size,
+                padding: config.padding,
+            },
+            task,
+        )
     }
     pub fn content_width(&self) -> f32 {
         self.size.width - self.padding.horizontal()
@@ -27,7 +33,7 @@ impl Window {
 #[derive(Debug, Clone)]
 pub struct WindowConfig {
     pub size: Size,
-    pub padding: Padding
+    pub padding: Padding,
 }
 
 fn terminal_window_settings(size: Size) -> Settings {

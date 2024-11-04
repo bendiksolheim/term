@@ -1,7 +1,23 @@
 use crate::ansi_parser::{self, AnsiParser};
-use iced::{futures::{channel::mpsc, SinkExt}, Task};
+use iced::{
+    futures::{channel::mpsc, SinkExt},
+    Task,
+};
 
-use crate::{structs::{cell::{Cell, CellStyle}, cursor::Cursor, grid::{Grid, Selection}, terminalsize::TerminalSize}, term::{self, term::{Event, TermMessage}, terminal_output::TerminalOutput}, Message};
+use crate::{
+    structs::{
+        cell::{Cell, CellStyle},
+        cursor::Cursor,
+        grid::{Grid, Selection},
+        terminalsize::TerminalSize,
+    },
+    term::{
+        self,
+        term::{Event, TermMessage},
+        terminal_output::TerminalOutput,
+    },
+    Message,
+};
 
 pub struct Terminal {
     application_mode: bool, // Changes how cursor keys are coded
@@ -27,7 +43,7 @@ impl Terminal {
             cursor_visible: true,
             saved_cursor_position: None,
             content: Grid::new(rows, cols, vec![Cell::default(); rows * cols]),
-            current_cell_style: CellStyle:: default(),
+            current_cell_style: CellStyle::default(),
             sender: None,
         }
     }
@@ -37,7 +53,6 @@ impl Terminal {
             let f = async move {
                 let mut sender = sender;
                 sender.send(message).await.expect("Could not send TermMessage");
-
             };
             Task::perform(f, |_| Message::TerminalInput)
         } else {

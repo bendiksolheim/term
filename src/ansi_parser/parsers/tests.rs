@@ -111,18 +111,14 @@ test_parser!(set_single_shift3, "\u{1b}O");
 
 #[test]
 fn test_parser_iterator() {
-    let count = "\x1b[=25l\x1b[=7l\x1b[0m\x1b[36m\x1b[1m-`"
-        .ansi_parse()
-        .count();
+    let count = "\x1b[=25l\x1b[=7l\x1b[0m\x1b[36m\x1b[1m-`".ansi_parse().count();
 
     assert_eq!(count, 6);
 }
 
 #[test]
 fn test_parser_iterator_failure() {
-    let count = "\x1b[=25l\x1b[=7l\x1b[0m\x1b[36;1;15;2m\x1b[1m-`"
-        .ansi_parse()
-        .count();
+    let count = "\x1b[=25l\x1b[=7l\x1b[0m\x1b[36;1;15;2m\x1b[1m-`".ansi_parse().count();
 
     assert_eq!(count, 6);
 }
@@ -134,14 +130,8 @@ fn test_default_value() {
         .collect();
     assert_eq!(strings.len(), 5);
     assert_eq!(strings[0], Output::Escape(AnsiSequence::CursorPos(1, 1)));
-    assert_eq!(
-        strings[1],
-        Output::Escape(AnsiSequence::CursorPos(123456, 1))
-    );
-    assert_eq!(
-        strings[2],
-        Output::Escape(AnsiSequence::CursorPos(1, 123456))
-    );
+    assert_eq!(strings[1], Output::Escape(AnsiSequence::CursorPos(123456, 1)));
+    assert_eq!(strings[2], Output::Escape(AnsiSequence::CursorPos(1, 123456)));
     assert_eq!(strings[3], Output::TextBlock("\x1b[7asd;1234H"));
     assert_eq!(strings[4], Output::TextBlock("\x1b[a;sd7H"));
 }
@@ -151,9 +141,6 @@ fn test_escape() {
     let parts: Vec<_> = "\x1b\x1b[33mFoobar".ansi_parse().collect();
     assert_eq!(
         parts,
-        vec![
-            Output::Escape(AnsiSequence::Escape),
-            Output::TextBlock("[33mFoobar")
-        ]
+        vec![Output::Escape(AnsiSequence::Escape), Output::TextBlock("[33mFoobar")]
     );
 }

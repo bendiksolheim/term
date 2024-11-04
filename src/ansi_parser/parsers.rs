@@ -76,8 +76,7 @@ fn cursor_backward(input: &str) -> IResult<&str, AnsiSequence> {
 
 fn graphics_mode1(input: &str) -> IResult<&str, AnsiSequence> {
     map(delimited(tag("["), parse_u8, tag("m")), |val| {
-        let mode =
-            Vec::from_slice(&[val]).expect("Vec::from_slice should allocate sufficient size");
+        let mode = Vec::from_slice(&[val]).expect("Vec::from_slice should allocate sufficient size");
         AnsiSequence::SetGraphicsMode(mode)
     })(input)
 }
@@ -86,8 +85,7 @@ fn graphics_mode2(input: &str) -> IResult<&str, AnsiSequence> {
     map(
         tuple((tag("["), parse_u8, tag(";"), parse_u8, tag("m"))),
         |(_, val1, _, val2, _)| {
-            let mode = Vec::from_slice(&[val1, val2])
-                .expect("Vec::from_slice should allocate sufficient size");
+            let mode = Vec::from_slice(&[val1, val2]).expect("Vec::from_slice should allocate sufficient size");
             AnsiSequence::SetGraphicsMode(mode)
         },
     )(input)
@@ -95,18 +93,9 @@ fn graphics_mode2(input: &str) -> IResult<&str, AnsiSequence> {
 
 fn graphics_mode3(input: &str) -> IResult<&str, AnsiSequence> {
     map(
-        tuple((
-            tag("["),
-            parse_u8,
-            tag(";"),
-            parse_u8,
-            tag(";"),
-            parse_u8,
-            tag("m"),
-        )),
+        tuple((tag("["), parse_u8, tag(";"), parse_u8, tag(";"), parse_u8, tag("m"))),
         |(_, val1, _, val2, _, val3, _)| {
-            let mode = Vec::from_slice(&[val1, val2, val3])
-                .expect("Vec::from_slice should allocate sufficient size");
+            let mode = Vec::from_slice(&[val1, val2, val3]).expect("Vec::from_slice should allocate sufficient size");
             AnsiSequence::SetGraphicsMode(mode)
         },
     )(input)
@@ -170,11 +159,7 @@ fn set_top_and_bottom(input: &str) -> IResult<&str, AnsiSequence> {
 
 fn erase_display(input: &str) -> IResult<&str, AnsiSequence> {
     map(
-        delimited(
-            tag("["),
-            map(digit0, |s: &str| s.parse::<u8>().unwrap_or(0)),
-            tag("J"),
-        ),
+        delimited(tag("["), map(digit0, |s: &str| s.parse::<u8>().unwrap_or(0)), tag("J")),
         |n| AnsiSequence::EraseDisplay(n),
     )(input)
 }

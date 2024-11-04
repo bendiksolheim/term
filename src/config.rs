@@ -29,7 +29,7 @@ impl Config {
                     left: 5.0,
                     bottom: 5.0,
                     right: 5.0,
-                }
+                },
             },
             cell_size,
         }

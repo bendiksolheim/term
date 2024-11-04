@@ -14,7 +14,7 @@ pub enum TerminalColor {
     White,
     Default,
     EightBit(u8),
-    TwentyFourBit(u8, u8, u8)
+    TwentyFourBit(u8, u8, u8),
 }
 
 static COLOR_MAP: Lazy<HashMap<u8, Color>> = Lazy::new(|| {
@@ -71,7 +71,7 @@ impl TerminalColor {
             TerminalColor::White => Color::from_rgb(0.722, 0.753, 0.878),
             TerminalColor::Default => Color::from_rgb(1.0, 1.0, 1.0),
             TerminalColor::EightBit(n) => parse_eight_bit_color(n),
-            TerminalColor::TwentyFourBit(r, g, b) => parse_rgb(r, g, b)
+            TerminalColor::TwentyFourBit(r, g, b) => parse_rgb(r, g, b),
         }
     }
 
@@ -87,7 +87,7 @@ impl TerminalColor {
             TerminalColor::White => Color::from_rgb(0.722, 0.753, 0.878),
             TerminalColor::Default => Color::from_rgba(0.0, 0.0, 0.0, 0.0),
             TerminalColor::EightBit(n) => parse_eight_bit_color(n),
-            TerminalColor::TwentyFourBit(r, g, b) => parse_rgb(r, g, b)
+            TerminalColor::TwentyFourBit(r, g, b) => parse_rgb(r, g, b),
         }
     }
 }

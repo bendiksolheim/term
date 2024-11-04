@@ -1,9 +1,9 @@
+mod ansi_parser;
+mod application;
 mod config;
 mod font;
 mod terminal;
 mod window;
-mod application;
-mod ansi_parser;
 
 mod structs {
     pub mod cell;
@@ -20,12 +20,9 @@ mod term {
     pub mod terminal_output;
 }
 
-use application::Application;
-use iced::{
-    window::Id,
-    Size,
-};
 use crate::config::Config;
+use application::Application;
+use iced::{window::Id, Size};
 
 fn main() -> iced::Result {
     let settings = settings();

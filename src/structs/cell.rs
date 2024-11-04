@@ -74,7 +74,7 @@ impl CellStyle {
                 self.modify(rest);
             }
 
-            [48, 2, r, g , b, ref rest @ ..] => {
+            [48, 2, r, g, b, ref rest @ ..] => {
                 // parse 24 bit color, set as background
                 self.parse_attribute(Graphics::SetBackground(TerminalColor::TwentyFourBit(r, g, b)));
                 self.modify(rest);

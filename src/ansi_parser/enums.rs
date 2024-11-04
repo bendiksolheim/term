@@ -86,11 +86,7 @@ impl Display for AnsiSequence {
                 1 => write!(formatter, "[{}m", vec[0]),
                 2 => write!(formatter, "[{};{}m", vec[0], vec[1]),
                 3 => write!(formatter, "[{};{};{}m", vec[0], vec[1], vec[2]),
-                5 => write!(
-                    formatter,
-                    "[{};{};{};{};{}m",
-                    vec[0], vec[1], vec[2], vec[3], vec[4]
-                ),
+                5 => write!(formatter, "[{};{};{};{};{}m", vec[0], vec[1], vec[2], vec[3], vec[4]),
                 _ => unreachable!(),
             },
             SetMode(mode) => write!(formatter, "[={}h", mode),

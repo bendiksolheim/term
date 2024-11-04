@@ -1,12 +1,24 @@
-use iced::{keyboard::{self, key::Named, Key}, widget::{container, text, Column, Row}, window::Id, Element, Subscription, Task};
+use iced::{
+    keyboard::{self, key::Named, Key},
+    widget::{container, text, Column, Row},
+    window::Id,
+    Element, Subscription, Task,
+};
 use rustix_openpty::rustix::termios::Winsize;
 
-use crate::{config::Config, structs::{cell::Cell, cursor::Cursor, terminalsize::TerminalSize}, term::{colors::TerminalColor, term}, terminal::Terminal, window::Window, Message};
+use crate::{
+    config::Config,
+    structs::{cell::Cell, cursor::Cursor, terminalsize::TerminalSize},
+    term::{colors::TerminalColor, term},
+    terminal::Terminal,
+    window::Window,
+    Message,
+};
 
 pub struct Application {
     terminal: Terminal,
     config: Config,
-    window: Window
+    window: Window,
 }
 
 impl Application {
@@ -16,17 +28,20 @@ impl Application {
         let rows = (window.content_height() / config.cell_size.height) as usize;
         let size = TerminalSize { cols, rows };
 
-
-        (Self {
-            terminal: Terminal::new(size),
-            config,
-            window
-        }, window_task.map(|id| Message::WindowCreated(id)))
+        (
+            Self {
+                terminal: Terminal::new(size),
+                config,
+                window,
+            },
+            window_task.map(|id| Message::WindowCreated(id)),
+        )
     }
 
     pub fn view(&self, _window: Id) -> Element<'_, Message> {
         Column::with_children(
-            self.terminal.content
+            self.terminal
+                .content
                 .iter_rows()
                 .enumerate()
                 .map(|(y, row)| {
@@ -46,16 +61,10 @@ impl Application {
 
     pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::KeyboardBytes(bytes) => {
-                self.terminal.send(term::TermMessage::Bytes(bytes))
-            }
+            Message::KeyboardBytes(bytes) => self.terminal.send(term::TermMessage::Bytes(bytes)),
             Message::TerminalInput => Task::none(),
-            Message::TerminalOutput(term_event) => {
-                self.terminal.parse(term_event)
-            }
-            Message::WindowCreated(_id) => {
-                Task::none()
-            }
+            Message::TerminalOutput(term_event) => self.terminal.parse(term_event),
+            Message::WindowCreated(_id) => Task::none(),
             Message::WindowResized(size) => {
                 let cols_changed = (size.width - self.window.size.width).abs() > self.config.cell_size.width;
                 let rows_changed = (size.height - self.window.size.height).abs() > self.config.cell_size.height;
@@ -68,11 +77,15 @@ impl Application {
 
                     // Move the cursor if window shrinks
                     if self.terminal.cursor.col >= self.terminal.content.cols {
-                        self.terminal.cursor.up(self.terminal.cursor.col - self.terminal.content.cols);
+                        self.terminal
+                            .cursor
+                            .up(self.terminal.cursor.col - self.terminal.content.cols);
                     }
 
                     if self.terminal.cursor.row >= self.terminal.content.rows {
-                        self.terminal.cursor.left(self.terminal.cursor.row - self.terminal.content.rows);
+                        self.terminal
+                            .cursor
+                            .left(self.terminal.cursor.row - self.terminal.content.rows);
                     }
 
                     println!("Resized to {:?}:{:?}", cols, rows);
@@ -97,7 +110,7 @@ impl Application {
                     text,
                 } => {
                     if let Some(char) = text {
-                            Some(Message::KeyboardBytes(char.as_bytes().to_vec()))
+                        Some(Message::KeyboardBytes(char.as_bytes().to_vec()))
                     } else if let Key::Named(k) = key {
                         match k {
                             Named::ArrowUp => Some(Message::KeyboardBytes("\x1b[A".into())),
@@ -122,8 +135,7 @@ impl Application {
             iced::Event::Touch(_event) => None,
         });
         let winsize = create_winsize(self.terminal.size);
-        let term_sub =
-            Subscription::run_with_id(12345, term::Term::spawn(winsize)).map(Message::TerminalOutput);
+        let term_sub = Subscription::run_with_id(12345, term::Term::spawn(winsize)).map(Message::TerminalOutput);
         iced::Subscription::batch([tmp, term_sub])
     }
 }
