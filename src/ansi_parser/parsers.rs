@@ -4,12 +4,12 @@ mod tests;
 use crate::ansi_parser::AnsiSequence;
 
 use heapless::Vec;
-use nom::branch::alt;
-use nom::bytes::complete::tag;
-use nom::character::complete::{digit0, digit1};
-use nom::combinator::{map, map_res, opt, value};
-use nom::sequence::{delimited, preceded, tuple};
-use nom::IResult;
+use winnow::branch::alt;
+use winnow::bytes::complete::tag;
+use winnow::character::complete::{digit0, digit1};
+use winnow::combinator::{map, map_res, opt, value};
+use winnow::sequence::{delimited, preceded, tuple};
+use winnow::IResult;
 
 macro_rules! tag_parser {
     ($sig:ident, $tag:expr, $ret:expr) => {
