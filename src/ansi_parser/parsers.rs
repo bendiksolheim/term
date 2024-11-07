@@ -5,127 +5,130 @@ use crate::ansi_parser::AnsiSequence;
 
 use heapless::Vec;
 use winnow::branch::alt;
-use winnow::bytes::complete::tag;
-use winnow::character::complete::{digit0, digit1};
-use winnow::combinator::{map, map_res, opt, value};
-use winnow::sequence::{delimited, preceded, tuple};
-use winnow::IResult;
+use winnow::bytes::tag;
+use winnow::character::{digit0, digit1};
+use winnow::combinator::opt;
+use winnow::sequence::{delimited, preceded};
+use winnow::{IResult, Parser};
 
 macro_rules! tag_parser {
     ($sig:ident, $tag:expr, $ret:expr) => {
         fn $sig(input: &str) -> IResult<&str, AnsiSequence> {
-            value($ret, tag($tag))(input)
+            tag($tag).value($ret).parse_next(input)
+            // value($ret, tag($tag))(input)
         }
     };
 }
 
 fn parse_u32(input: &str) -> IResult<&str, u32> {
-    map_res(digit1, |s: &str| s.parse::<u32>())(input)
+    digit1.map_res(|s: &str| s.parse::<u32>()).parse_next(input)
 }
 
 fn parse_u8(input: &str) -> IResult<&str, u8> {
-    map_res(digit1, |s: &str| s.parse::<u8>())(input)
+    digit1.map_res(|s: &str| s.parse::<u8>()).parse_next(input)
 }
 
 // TODO kind of ugly, would prefer to pass in the default so we could use it for
 // all escapes with defaults (not just those that default to 1).
 fn parse_def_cursor_int(input: &str) -> IResult<&str, u32> {
-    map(digit0, |s: &str| s.parse::<u32>().unwrap_or(1))(input)
+    digit0.map(|s: &str| s.parse::<u32>().unwrap_or(1)).parse_next(input)
 }
 
 fn cursor_pos(input: &str) -> IResult<&str, AnsiSequence> {
-    map(
-        tuple((
-            tag("["),
-            parse_def_cursor_int,
-            opt(tag(";")),
-            parse_def_cursor_int,
-            alt((tag("H"), tag("f"))),
-        )),
-        |(_, x, _, y, _)| AnsiSequence::CursorPos(x, y),
-    )(input)
+    (
+        tag("["),
+        parse_def_cursor_int,
+        opt(tag(";")),
+        parse_def_cursor_int,
+        alt((tag("H"), tag("f"))),
+    )
+        .map(|(_, x, _, y, _)| AnsiSequence::CursorPos(x, y))
+        .parse_next(input)
 }
 
 fn escape(input: &str) -> IResult<&str, AnsiSequence> {
-    value(AnsiSequence::Escape, tag("\u{1b}"))(input)
+    tag("\u{1b}").value(AnsiSequence::Escape).parse_next(input)
+    // value(AnsiSequence::Escape, tag("\u{1b}"))(input)
 }
 
 fn cursor_up(input: &str) -> IResult<&str, AnsiSequence> {
-    map(delimited(tag("["), parse_def_cursor_int, tag("A")), |am| {
-        AnsiSequence::CursorUp(am)
-    })(input)
+    delimited(tag("["), parse_def_cursor_int, tag("A"))
+        .map(|am| AnsiSequence::CursorUp(am))
+        .parse_next(input)
 }
 
 fn cursor_down(input: &str) -> IResult<&str, AnsiSequence> {
-    map(delimited(tag("["), parse_def_cursor_int, tag("B")), |am| {
-        AnsiSequence::CursorDown(am)
-    })(input)
+    delimited(tag("["), parse_def_cursor_int, tag("B"))
+        .map(|am| AnsiSequence::CursorDown(am))
+        .parse_next(input)
 }
 
 fn cursor_forward(input: &str) -> IResult<&str, AnsiSequence> {
-    map(delimited(tag("["), parse_def_cursor_int, tag("C")), |am| {
-        AnsiSequence::CursorForward(am)
-    })(input)
+    delimited(tag("["), parse_def_cursor_int, tag("C"))
+        .map(|am| AnsiSequence::CursorForward(am))
+        .parse_next(input)
 }
 
 fn cursor_backward(input: &str) -> IResult<&str, AnsiSequence> {
-    map(delimited(tag("["), parse_def_cursor_int, tag("D")), |am| {
-        AnsiSequence::CursorBackward(am)
-    })(input)
+    delimited(tag("["), parse_def_cursor_int, tag("D"))
+        .map(|am| AnsiSequence::CursorBackward(am))
+        .parse_next(input)
 }
 
 fn graphics_mode1(input: &str) -> IResult<&str, AnsiSequence> {
-    map(delimited(tag("["), parse_u8, tag("m")), |val| {
-        let mode = Vec::from_slice(&[val]).expect("Vec::from_slice should allocate sufficient size");
-        AnsiSequence::SetGraphicsMode(mode)
-    })(input)
+    delimited(tag("["), parse_u8, tag("m"))
+        .map(|val| {
+            let mode = Vec::from_slice(&[val]).expect("Vec::from_slice should allocate sufficient size");
+            AnsiSequence::SetGraphicsMode(mode)
+        })
+        .parse_next(input)
 }
 
 fn graphics_mode2(input: &str) -> IResult<&str, AnsiSequence> {
-    map(
-        tuple((tag("["), parse_u8, tag(";"), parse_u8, tag("m"))),
-        |(_, val1, _, val2, _)| {
+    (tag("["), parse_u8, tag(";"), parse_u8, tag("m"))
+        .map(|(_, val1, _, val2, _)| {
             let mode = Vec::from_slice(&[val1, val2]).expect("Vec::from_slice should allocate sufficient size");
             AnsiSequence::SetGraphicsMode(mode)
-        },
-    )(input)
+        })
+        .parse_next(input)
 }
 
 fn graphics_mode3(input: &str) -> IResult<&str, AnsiSequence> {
-    map(
-        tuple((tag("["), parse_u8, tag(";"), parse_u8, tag(";"), parse_u8, tag("m"))),
-        |(_, val1, _, val2, _, val3, _)| {
+    (tag("["), parse_u8, tag(";"), parse_u8, tag(";"), parse_u8, tag("m"))
+        .map(|(_, val1, _, val2, _, val3, _)| {
             let mode = Vec::from_slice(&[val1, val2, val3]).expect("Vec::from_slice should allocate sufficient size");
             AnsiSequence::SetGraphicsMode(mode)
-        },
-    )(input)
+        })
+        .parse_next(input)
 }
 
 fn graphics_mode4(input: &str) -> IResult<&str, AnsiSequence> {
-    value(AnsiSequence::SetGraphicsMode(Vec::new()), tag("[m"))(input)
+    tag("[m")
+        .value(AnsiSequence::SetGraphicsMode(Vec::new()))
+        .parse_next(input)
+    // value(AnsiSequence::SetGraphicsMode(Vec::new()), tag("[m"))(input)
 }
 
 fn graphics_mode5(input: &str) -> IResult<&str, AnsiSequence> {
-    map(
-        tuple((
-            tag("["),
-            parse_u8,
-            tag(";"),
-            parse_u8,
-            tag(";"),
-            parse_u8,
-            tag(";"),
-            parse_u8,
-            tag(";"),
-            parse_u8,
-            tag("m"),
-        )),
-        |(_, val1, _, val2, _, val3, _, val4, _, val5, _)| {
+    (
+        tag("["),
+        parse_u8,
+        tag(";"),
+        parse_u8,
+        tag(";"),
+        parse_u8,
+        tag(";"),
+        parse_u8,
+        tag(";"),
+        parse_u8,
+        tag("m"),
+    )
+        .map(|(_, val1, _, val2, _, val3, _, val4, _, val5, _)| {
             let mode = Vec::from_slice(&[val1, val2, val3, val4, val5])
                 .expect("Vec::from_slice should allocate sufficient size");
             AnsiSequence::SetGraphicsMode(mode)
-        },
-    )(input)
+        })
+        .parse_next(input)
 }
 
 fn graphics_mode(input: &str) -> IResult<&str, AnsiSequence> {
@@ -139,29 +142,27 @@ fn graphics_mode(input: &str) -> IResult<&str, AnsiSequence> {
 }
 
 fn set_mode(input: &str) -> IResult<&str, AnsiSequence> {
-    map(delimited(tag("[="), parse_u8, tag("h")), |val| {
-        AnsiSequence::SetMode(val)
-    })(input)
+    delimited(tag("[="), parse_u8, tag("h"))
+        .map(|val| AnsiSequence::SetMode(val))
+        .parse_next(input)
 }
 
 fn reset_mode(input: &str) -> IResult<&str, AnsiSequence> {
-    map(delimited(tag("[="), parse_u8, tag("l")), |val| {
-        AnsiSequence::ResetMode(val)
-    })(input)
+    delimited(tag("[="), parse_u8, tag("l"))
+        .map(|val| AnsiSequence::ResetMode(val))
+        .parse_next(input)
 }
 
 fn set_top_and_bottom(input: &str) -> IResult<&str, AnsiSequence> {
-    map(
-        tuple((tag("["), parse_u32, tag(";"), parse_u32, tag("r"))),
-        |(_, x, _, y, _)| AnsiSequence::SetTopAndBottom(x, y),
-    )(input)
+    (tag("["), parse_u32, tag(";"), parse_u32, tag("r"))
+        .map(|(_, x, _, y, _)| AnsiSequence::SetTopAndBottom(x, y))
+        .parse_next(input)
 }
 
 fn erase_display(input: &str) -> IResult<&str, AnsiSequence> {
-    map(
-        delimited(tag("["), map(digit0, |s: &str| s.parse::<u8>().unwrap_or(0)), tag("J")),
-        |n| AnsiSequence::EraseDisplay(n),
-    )(input)
+    delimited(tag("["), digit0.map(|s: &str| s.parse::<u8>().unwrap_or(0)), tag("J"))
+        .map(|n| AnsiSequence::EraseDisplay(n))
+        .parse_next(input)
 }
 
 tag_parser!(cursor_save, "[s", AnsiSequence::CursorSave);
