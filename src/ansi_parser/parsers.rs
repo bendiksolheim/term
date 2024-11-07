@@ -4,9 +4,9 @@ mod tests;
 use crate::ansi_parser::AnsiSequence;
 
 use heapless::Vec;
+use winnow::ascii::{digit0, digit1};
 use winnow::branch::alt;
 use winnow::bytes::tag;
-use winnow::character::{digit0, digit1};
 use winnow::combinator::opt;
 use winnow::sequence::{delimited, preceded};
 use winnow::{IResult, Parser};
@@ -21,11 +21,11 @@ macro_rules! tag_parser {
 }
 
 fn parse_u32(input: &str) -> IResult<&str, u32> {
-    digit1.map_res(|s: &str| s.parse::<u32>()).parse_next(input)
+    digit1.try_map(|s: &str| s.parse::<u32>()).parse_next(input)
 }
 
 fn parse_u8(input: &str) -> IResult<&str, u8> {
-    digit1.map_res(|s: &str| s.parse::<u8>()).parse_next(input)
+    digit1.try_map(|s: &str| s.parse::<u8>()).parse_next(input)
 }
 
 // TODO kind of ugly, would prefer to pass in the default so we could use it for
@@ -48,7 +48,6 @@ fn cursor_pos(input: &str) -> IResult<&str, AnsiSequence> {
 
 fn escape(input: &str) -> IResult<&str, AnsiSequence> {
     tag("\u{1b}").value(AnsiSequence::Escape).parse_next(input)
-    // value(AnsiSequence::Escape, tag("\u{1b}"))(input)
 }
 
 fn cursor_up(input: &str) -> IResult<&str, AnsiSequence> {
@@ -138,7 +137,8 @@ fn graphics_mode(input: &str) -> IResult<&str, AnsiSequence> {
         graphics_mode3,
         graphics_mode4,
         graphics_mode5,
-    ))(input)
+    ))
+    .parse_next(input)
 }
 
 fn set_mode(input: &str) -> IResult<&str, AnsiSequence> {
@@ -275,9 +275,10 @@ fn combined(input: &str) -> IResult<&str, AnsiSequence> {
         set_g1_graph,
         set_single_shift2,
         set_single_shift3,
-    ))(input)
+    ))
+    .parse_next(input)
 }
 
 pub fn parse_escape(input: &str) -> IResult<&str, AnsiSequence> {
-    preceded(tag("\u{1b}"), combined)(input)
+    preceded(tag("\u{1b}"), combined).parse_next(input)
 }
