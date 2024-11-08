@@ -5,77 +5,75 @@ use crate::ansi_parser::AnsiSequence;
 
 use heapless::Vec;
 use winnow::ascii::{digit0, digit1};
-use winnow::branch::alt;
-use winnow::bytes::tag;
-use winnow::combinator::opt;
-use winnow::sequence::{delimited, preceded};
-use winnow::{IResult, Parser};
+use winnow::combinator::{alt, delimited, opt, preceded};
+use winnow::error::InputError;
+use winnow::token::literal;
+use winnow::{IResult, PResult, Parser};
 
 macro_rules! tag_parser {
     ($sig:ident, $tag:expr, $ret:expr) => {
-        fn $sig(input: &str) -> IResult<&str, AnsiSequence> {
-            tag($tag).value($ret).parse_next(input)
-            // value($ret, tag($tag))(input)
+        fn $sig<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+            literal($tag).value($ret).parse_next(input)
         }
     };
 }
 
-fn parse_u32(input: &str) -> IResult<&str, u32> {
+fn parse_u32<'s>(input: &mut &'s str) -> PResult<u32, InputError<&'s str>> {
     digit1.try_map(|s: &str| s.parse::<u32>()).parse_next(input)
 }
 
-fn parse_u8(input: &str) -> IResult<&str, u8> {
+fn parse_u8<'s>(input: &mut &'s str) -> PResult<u8, InputError<&'s str>> {
     digit1.try_map(|s: &str| s.parse::<u8>()).parse_next(input)
 }
 
 // TODO kind of ugly, would prefer to pass in the default so we could use it for
 // all escapes with defaults (not just those that default to 1).
-fn parse_def_cursor_int(input: &str) -> IResult<&str, u32> {
+fn parse_def_cursor_int<'s>(input: &mut &'s str) -> PResult<u32, InputError<&'s str>> {
     digit0.map(|s: &str| s.parse::<u32>().unwrap_or(1)).parse_next(input)
 }
 
-fn cursor_pos(input: &str) -> IResult<&str, AnsiSequence> {
+fn cursor_pos<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
     (
-        tag("["),
+        "[",
         parse_def_cursor_int,
-        opt(tag(";")),
+        opt(";"),
         parse_def_cursor_int,
-        alt((tag("H"), tag("f"))),
+        alt(("H", "f")),
     )
         .map(|(_, x, _, y, _)| AnsiSequence::CursorPos(x, y))
         .parse_next(input)
 }
 
-fn escape(input: &str) -> IResult<&str, AnsiSequence> {
-    tag("\u{1b}").value(AnsiSequence::Escape).parse_next(input)
+fn escape<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    "\u{1b}".value(AnsiSequence::Escape).parse_next(input)
 }
 
-fn cursor_up(input: &str) -> IResult<&str, AnsiSequence> {
-    delimited(tag("["), parse_def_cursor_int, tag("A"))
-        .map(|am| AnsiSequence::CursorUp(am))
+fn cursor_up<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    delimited("[", parse_def_cursor_int, "A")
+        .map(|am: u32| AnsiSequence::CursorUp(am))
         .parse_next(input)
 }
 
-fn cursor_down(input: &str) -> IResult<&str, AnsiSequence> {
-    delimited(tag("["), parse_def_cursor_int, tag("B"))
+fn cursor_down<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    delimited("[", parse_def_cursor_int, "B")
         .map(|am| AnsiSequence::CursorDown(am))
         .parse_next(input)
 }
 
-fn cursor_forward(input: &str) -> IResult<&str, AnsiSequence> {
-    delimited(tag("["), parse_def_cursor_int, tag("C"))
+fn cursor_forward<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    delimited("[", parse_def_cursor_int, "C")
         .map(|am| AnsiSequence::CursorForward(am))
         .parse_next(input)
 }
 
-fn cursor_backward(input: &str) -> IResult<&str, AnsiSequence> {
-    delimited(tag("["), parse_def_cursor_int, tag("D"))
+fn cursor_backward<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    delimited("[", parse_def_cursor_int, "D")
         .map(|am| AnsiSequence::CursorBackward(am))
         .parse_next(input)
 }
 
-fn graphics_mode1(input: &str) -> IResult<&str, AnsiSequence> {
-    delimited(tag("["), parse_u8, tag("m"))
+fn graphics_mode1<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    delimited("[", parse_u8, "m")
         .map(|val| {
             let mode = Vec::from_slice(&[val]).expect("Vec::from_slice should allocate sufficient size");
             AnsiSequence::SetGraphicsMode(mode)
@@ -83,8 +81,8 @@ fn graphics_mode1(input: &str) -> IResult<&str, AnsiSequence> {
         .parse_next(input)
 }
 
-fn graphics_mode2(input: &str) -> IResult<&str, AnsiSequence> {
-    (tag("["), parse_u8, tag(";"), parse_u8, tag("m"))
+fn graphics_mode2<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    ("[", parse_u8, ";", parse_u8, "m")
         .map(|(_, val1, _, val2, _)| {
             let mode = Vec::from_slice(&[val1, val2]).expect("Vec::from_slice should allocate sufficient size");
             AnsiSequence::SetGraphicsMode(mode)
@@ -92,8 +90,8 @@ fn graphics_mode2(input: &str) -> IResult<&str, AnsiSequence> {
         .parse_next(input)
 }
 
-fn graphics_mode3(input: &str) -> IResult<&str, AnsiSequence> {
-    (tag("["), parse_u8, tag(";"), parse_u8, tag(";"), parse_u8, tag("m"))
+fn graphics_mode3<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    ("[", parse_u8, ";", parse_u8, ";", parse_u8, "m")
         .map(|(_, val1, _, val2, _, val3, _)| {
             let mode = Vec::from_slice(&[val1, val2, val3]).expect("Vec::from_slice should allocate sufficient size");
             AnsiSequence::SetGraphicsMode(mode)
@@ -101,26 +99,13 @@ fn graphics_mode3(input: &str) -> IResult<&str, AnsiSequence> {
         .parse_next(input)
 }
 
-fn graphics_mode4(input: &str) -> IResult<&str, AnsiSequence> {
-    tag("[m")
-        .value(AnsiSequence::SetGraphicsMode(Vec::new()))
-        .parse_next(input)
-    // value(AnsiSequence::SetGraphicsMode(Vec::new()), tag("[m"))(input)
+fn graphics_mode4<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    "[m".value(AnsiSequence::SetGraphicsMode(Vec::new())).parse_next(input)
 }
 
-fn graphics_mode5(input: &str) -> IResult<&str, AnsiSequence> {
+fn graphics_mode5<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
     (
-        tag("["),
-        parse_u8,
-        tag(";"),
-        parse_u8,
-        tag(";"),
-        parse_u8,
-        tag(";"),
-        parse_u8,
-        tag(";"),
-        parse_u8,
-        tag("m"),
+        "[", parse_u8, ";", parse_u8, ";", parse_u8, ";", parse_u8, ";", parse_u8, "m",
     )
         .map(|(_, val1, _, val2, _, val3, _, val4, _, val5, _)| {
             let mode = Vec::from_slice(&[val1, val2, val3, val4, val5])
@@ -130,7 +115,7 @@ fn graphics_mode5(input: &str) -> IResult<&str, AnsiSequence> {
         .parse_next(input)
 }
 
-fn graphics_mode(input: &str) -> IResult<&str, AnsiSequence> {
+fn graphics_mode<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
     alt((
         graphics_mode1,
         graphics_mode2,
@@ -141,26 +126,26 @@ fn graphics_mode(input: &str) -> IResult<&str, AnsiSequence> {
     .parse_next(input)
 }
 
-fn set_mode(input: &str) -> IResult<&str, AnsiSequence> {
-    delimited(tag("[="), parse_u8, tag("h"))
+fn set_mode<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    delimited("[=", parse_u8, "h")
         .map(|val| AnsiSequence::SetMode(val))
         .parse_next(input)
 }
 
-fn reset_mode(input: &str) -> IResult<&str, AnsiSequence> {
-    delimited(tag("[="), parse_u8, tag("l"))
+fn reset_mode<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    delimited("[=", parse_u8, "l")
         .map(|val| AnsiSequence::ResetMode(val))
         .parse_next(input)
 }
 
-fn set_top_and_bottom(input: &str) -> IResult<&str, AnsiSequence> {
-    (tag("["), parse_u32, tag(";"), parse_u32, tag("r"))
+fn set_top_and_bottom<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    ("[", parse_u32, ";", parse_u32, "r")
         .map(|(_, x, _, y, _)| AnsiSequence::SetTopAndBottom(x, y))
         .parse_next(input)
 }
 
-fn erase_display(input: &str) -> IResult<&str, AnsiSequence> {
-    delimited(tag("["), digit0.map(|s: &str| s.parse::<u8>().unwrap_or(0)), tag("J"))
+fn erase_display<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    delimited("[", digit0.map(|s: &str| s.parse::<u8>().unwrap_or(0)), "J")
         .map(|n| AnsiSequence::EraseDisplay(n))
         .parse_next(input)
 }
@@ -215,8 +200,8 @@ tag_parser!(set_g1_graph, ")2", AnsiSequence::SetG1AltAndSpecialGraph);
 tag_parser!(set_single_shift2, "N", AnsiSequence::SetSingleShift2);
 tag_parser!(set_single_shift3, "O", AnsiSequence::SetSingleShift3);
 
-fn combined(input: &str) -> IResult<&str, AnsiSequence> {
-    // `alt` only supports up to 21 parsers, and nom doesn't seem to
+fn combined<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
+    // `alt` only supports up to 21 parsers, and winnow doesn't seem to
     // have an alternative with higher variability.
     // So we simply nest them.
     alt((
@@ -266,19 +251,21 @@ fn combined(input: &str) -> IResult<&str, AnsiSequence> {
             set_uk_g1,
             set_us_g0,
         )),
-        set_us_g1,
-        set_g0_special,
-        set_g1_special,
-        set_g0_alternate,
-        set_g1_alternate,
-        set_g0_graph,
-        set_g1_graph,
-        set_single_shift2,
-        set_single_shift3,
+        alt((
+            set_us_g1,
+            set_g0_special,
+            set_g1_special,
+            set_g0_alternate,
+            set_g1_alternate,
+            set_g0_graph,
+            set_g1_graph,
+            set_single_shift2,
+            set_single_shift3,
+        )),
     ))
     .parse_next(input)
 }
 
 pub fn parse_escape(input: &str) -> IResult<&str, AnsiSequence> {
-    preceded(tag("\u{1b}"), combined).parse_next(input)
+    preceded("\u{1b}", combined).parse_peek(input)
 }
