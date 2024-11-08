@@ -14,4 +14,4 @@ font-loader = "0.11.0"
 
 # ansi-parser
 heapless = "0.8.0"
-winnow = "0.5"
+winnow = "0.6"
