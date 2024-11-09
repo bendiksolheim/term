@@ -103,14 +103,21 @@ impl Terminal {
         for block in parsed.into_iter() {
             match block {
                 ansi_parser::Output::TextBlock(text) => text.chars().for_each(|c| {
-                    self.content[self.cursor].content = c;
-                    self.content[self.cursor].style = self.current_cell_style.clone();
-                    self.cursor.right(1);
+                    if let Some(cell) = self.content.get(self.cursor) {
+                        cell.content = c;
+                        cell.style = self.current_cell_style.clone();
+                        self.cursor.right(1)
+                    } else {
+                        println!("Warning: tried printing outside grid");
+                    }
                 }),
+
                 ansi_parser::Output::Escape(code) => match code {
                     ansi_parser::AnsiSequence::CursorPos(row, col) => {
-                        self.cursor
-                            .set_position(row.try_into().unwrap(), col.try_into().unwrap());
+                        // Cursor position starts at 1,1 in terminal, while grid starts at 0,0
+                        let grid_row = (row - 1) as usize;
+                        let grid_col = (col - 1) as usize;
+                        self.cursor.set_position(grid_row, grid_col);
                     }
 
                     ansi_parser::AnsiSequence::CursorUp(n) => {

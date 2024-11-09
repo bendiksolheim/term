@@ -14,6 +14,11 @@ impl<T: Clone + Default> Grid<T> {
         Self { rows, cols, data }
     }
 
+    pub fn get(&mut self, cursor: Cursor) -> Option<&mut T> {
+        let index = cursor.row * self.cols + cursor.col;
+        self.data.get_mut(index)
+    }
+
     // Iterate grid row by row
     pub fn iter_rows(&self) -> impl Iterator<Item = &[T]> {
         self.data.chunks(self.cols)
