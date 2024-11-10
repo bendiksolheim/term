@@ -21,6 +21,11 @@ impl Window {
             task,
         )
     }
+
+    pub fn resize(&mut self, size: Size) {
+        self.size = size;
+    }
+
     pub fn content_width(&self) -> f32 {
         self.size.width - self.padding.horizontal()
     }

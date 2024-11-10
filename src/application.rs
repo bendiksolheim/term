@@ -71,6 +71,7 @@ impl Application {
                     let cols = (self.window.content_width() / self.config.cell_size.width) as usize;
                     let rows = (self.window.content_height() / self.config.cell_size.height) as usize;
                     let new_size = TerminalSize { cols, rows };
+                    self.window.resize(size);
                     self.terminal.resize(new_size)
                 } else {
                     Task::none()
