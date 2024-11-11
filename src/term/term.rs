@@ -141,7 +141,7 @@ fn read_output(master: &OwnedFd, mut sender: Sender<Event>) {
 }
 fn spawn_shell(slave: &OwnedFd, shell: &str) -> io::Result<Child> {
     let mut command = Command::new(shell);
-    command.env("TERM", "xterm");
+    command.env("TERM", "xterm-256color");
     command.stdin(slave.try_clone()?);
     command.stdout(slave.try_clone()?);
     command.stderr(slave.try_clone()?);
