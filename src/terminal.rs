@@ -27,7 +27,7 @@ pub struct Terminal {
     pub cursor: Cursor,
     cursor_visible: bool,
     saved_cursor_position: Option<Cursor>,
-    pub content: Grid<Cell>,
+    pub buffer: Grid<Cell>,
     current_cell_style: CellStyle,
     pub sender: Option<mpsc::Sender<term::term::TermMessage>>,
 }
@@ -43,7 +43,7 @@ impl Terminal {
             cursor: Cursor::default(),
             cursor_visible: true,
             saved_cursor_position: None,
-            content: Grid::new(rows, cols, vec![Cell::default(); rows * cols]),
+            buffer: Grid::new(rows, cols, vec![Cell::default(); rows * cols]),
             current_cell_style: CellStyle::default(),
             sender: None,
         }
@@ -75,7 +75,7 @@ impl Terminal {
                         }
                         TerminalOutput::NewLine => {
                             if self.cursor.row == self.size.rows - 1 {
-                                self.content.shift_row();
+                                self.buffer.shift_row();
                             } else {
                                 self.cursor.down(1);
                             }
@@ -103,7 +103,7 @@ impl Terminal {
         for block in parsed.into_iter() {
             match block {
                 ansi_parser::Output::TextBlock(text) => text.chars().for_each(|c| {
-                    if let Some(cell) = self.content.get(self.cursor) {
+                    if let Some(cell) = self.buffer.get(self.cursor) {
                         cell.content = c;
                         cell.style = self.current_cell_style.clone();
                         self.cursor.right(1)
@@ -148,11 +148,11 @@ impl Terminal {
                     }
 
                     ansi_parser::AnsiSequence::EraseDisplay(n) => {
-                        self.content.clear_selection(Selection::ToEndOfDisplay(self.cursor));
+                        self.buffer.clear_selection(Selection::ToEndOfDisplay(self.cursor));
                     }
 
                     ansi_parser::AnsiSequence::EraseLine => {
-                        self.content.clear_selection(Selection::ToEndOfLine(self.cursor));
+                        self.buffer.clear_selection(Selection::ToEndOfLine(self.cursor));
                     }
 
                     ansi_parser::AnsiSequence::SetGraphicsMode(styles) => {
@@ -200,15 +200,15 @@ impl Terminal {
     }
 
     pub fn resize(&mut self, new_size: TerminalSize) -> Task<Message> {
-        self.content.resize(new_size.rows, new_size.cols);
+        self.buffer.resize(new_size.rows, new_size.cols);
 
         // Move the cursor if window shrinks
-        if self.cursor.col >= self.content.cols {
-            self.cursor.up(self.cursor.col - self.content.cols);
+        if self.cursor.col >= self.buffer.cols {
+            self.cursor.up(self.cursor.col - self.buffer.cols);
         }
 
-        if self.cursor.row >= self.content.rows {
-            self.cursor.left(self.cursor.row - self.content.rows);
+        if self.cursor.row >= self.buffer.rows {
+            self.cursor.left(self.cursor.row - self.buffer.rows);
         }
 
         self.send(TermMessage::WindowResized(new_size.cols, new_size.rows))

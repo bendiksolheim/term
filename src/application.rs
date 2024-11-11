@@ -40,7 +40,7 @@ impl Application {
     pub fn view(&self, _window: Id) -> Element<'_, Message> {
         Column::with_children(
             self.terminal
-                .content
+                .buffer
                 .iter_rows()
                 .enumerate()
                 .map(|(y, row)| {
