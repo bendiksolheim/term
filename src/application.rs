@@ -40,14 +40,16 @@ impl Application {
     pub fn view(&self, _window: Id) -> Element<'_, Message> {
         Column::with_children(
             self.terminal
-                .buffer
+                .buffer()
                 .iter_rows()
                 .enumerate()
                 .map(|(y, row)| {
                     Row::with_children(
                         row.iter()
                             .enumerate()
-                            .map(|(x, cell)| cell_view(&self.terminal.cursor, x, y, cell, self.config.font_size))
+                            .map(|(x, cell)| {
+                                cell_view(&self.terminal.buffer().cursor, x, y, cell, self.config.font_size)
+                            })
                             .collect::<Vec<_>>(),
                     )
                     .into()

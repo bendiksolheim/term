@@ -7,9 +7,8 @@ use rustix_openpty::rustix::termios::Winsize;
 
 use crate::{
     structs::{
+        buffer::{Buffer, Selection},
         cell::{Cell, CellStyle},
-        cursor::Cursor,
-        grid::{Grid, Selection},
         terminalsize::TerminalSize,
     },
     term::{
@@ -24,10 +23,9 @@ pub struct Terminal {
     application_mode: bool, // Changes how cursor keys are coded
     newline_mode: bool,     // Interprets \n as NL LF instead of just NL
     pub size: TerminalSize,
-    pub cursor: Cursor,
     cursor_visible: bool,
-    saved_cursor_position: Option<Cursor>,
-    pub buffer: Grid<Cell>,
+    buffer: Buffer<Cell>,
+    alternate_buffer: Option<Buffer<Cell>>,
     current_cell_style: CellStyle,
     pub sender: Option<mpsc::Sender<term::term::TermMessage>>,
 }
@@ -36,16 +34,32 @@ impl Terminal {
     pub fn new(size: TerminalSize) -> Self {
         let cols = size.cols as usize;
         let rows = size.rows as usize;
+
         Self {
             application_mode: false,
             newline_mode: false,
             size,
-            cursor: Cursor::default(),
             cursor_visible: true,
-            saved_cursor_position: None,
-            buffer: Grid::new(rows, cols, vec![Cell::default(); rows * cols]),
+            buffer: Buffer::new(rows, cols, vec![Cell::default(); rows * cols]),
+            alternate_buffer: None,
             current_cell_style: CellStyle::default(),
             sender: None,
+        }
+    }
+
+    pub fn buffer(&self) -> &Buffer<Cell> {
+        if let Some(buffer) = &self.alternate_buffer {
+            buffer
+        } else {
+            &self.buffer
+        }
+    }
+
+    fn buffer_mut(&mut self) -> &mut Buffer<Cell> {
+        if let Some(buffer) = &mut self.alternate_buffer {
+            buffer
+        } else {
+            &mut self.buffer
         }
     }
 
@@ -74,22 +88,14 @@ impl Terminal {
                             self.handle_ansi(&s);
                         }
                         TerminalOutput::NewLine => {
-                            if self.cursor.row == self.size.rows - 1 {
-                                self.buffer.shift_row();
-                            } else {
-                                self.cursor.down(1);
-                            }
-
-                            // If terminal is in newline mode, cursor is also moved to start of line
-                            if self.newline_mode {
-                                self.cursor.col = 0;
-                            }
+                            let newline_mode = self.newline_mode.clone();
+                            self.buffer_mut().newline(newline_mode);
                         }
                         TerminalOutput::CarriageReturn => {
-                            self.cursor.col = 0;
+                            self.buffer_mut().carriage_return();
                         }
                         TerminalOutput::Backspace => {
-                            self.cursor.left(1);
+                            self.buffer_mut().backspace();
                         }
                     }
                 }
@@ -103,13 +109,8 @@ impl Terminal {
         for block in parsed.into_iter() {
             match block {
                 ansi_parser::Output::TextBlock(text) => text.chars().for_each(|c| {
-                    if let Some(cell) = self.buffer.get(self.cursor) {
-                        cell.content = c;
-                        cell.style = self.current_cell_style.clone();
-                        self.cursor.right(1)
-                    } else {
-                        println!("Warning: tried printing outside grid");
-                    }
+                    let current_cell_style = self.current_cell_style.clone();
+                    self.buffer_mut().set(c, current_cell_style);
                 }),
 
                 ansi_parser::Output::Escape(code) => match code {
@@ -117,42 +118,41 @@ impl Terminal {
                         // Cursor position starts at 1,1 in terminal, while grid starts at 0,0
                         let grid_row = (row - 1) as usize;
                         let grid_col = (col - 1) as usize;
-                        self.cursor.set_position(grid_row, grid_col);
+                        self.buffer_mut().cursor.set_position(grid_row, grid_col);
                     }
 
                     ansi_parser::AnsiSequence::CursorUp(n) => {
-                        self.cursor.up(n.try_into().unwrap());
+                        self.buffer_mut().cursor.up(n.try_into().unwrap());
                     }
 
                     ansi_parser::AnsiSequence::CursorDown(n) => {
-                        self.cursor.down(n.try_into().unwrap());
+                        self.buffer_mut().cursor.down(n.try_into().unwrap());
                     }
 
                     ansi_parser::AnsiSequence::CursorForward(n) => {
-                        self.cursor.right(usize::try_from(n).unwrap());
+                        self.buffer_mut().cursor.right(usize::try_from(n).unwrap());
                     }
 
                     ansi_parser::AnsiSequence::CursorBackward(n) => {
-                        self.cursor.left(usize::try_from(n).unwrap());
+                        self.buffer_mut().cursor.left(usize::try_from(n).unwrap());
                     }
 
                     ansi_parser::AnsiSequence::CursorSave => {
-                        self.saved_cursor_position = Some(self.cursor.clone());
+                        self.buffer_mut().save_cursor();
                     }
 
                     ansi_parser::AnsiSequence::CursorRestore => {
-                        if let Some(cursor) = self.saved_cursor_position {
-                            self.cursor = cursor;
-                            self.saved_cursor_position = None;
-                        }
+                        self.buffer_mut().restore_cursor();
                     }
 
                     ansi_parser::AnsiSequence::EraseDisplay(n) => {
-                        self.buffer.clear_selection(Selection::ToEndOfDisplay(self.cursor));
+                        let cursor = self.buffer().cursor.clone();
+                        self.buffer_mut().clear_selection(Selection::ToEndOfDisplay(cursor));
                     }
 
                     ansi_parser::AnsiSequence::EraseLine => {
-                        self.buffer.clear_selection(Selection::ToEndOfLine(self.cursor));
+                        let cursor = self.buffer().cursor.clone();
+                        self.buffer_mut().clear_selection(Selection::ToEndOfLine(cursor));
                     }
 
                     ansi_parser::AnsiSequence::SetGraphicsMode(styles) => {
@@ -191,6 +191,16 @@ impl Terminal {
                         // TODO: Must be implemented before pasting
                     }
 
+                    ansi_parser::AnsiSequence::ShowAlternateBuffer => {
+                        let rows = self.buffer().rows;
+                        let cols = self.buffer().cols;
+                        self.alternate_buffer = Some(Buffer::new(rows, cols, vec![Cell::default(); rows * cols]))
+                    }
+
+                    ansi_parser::AnsiSequence::ShowNormalBuffer => {
+                        self.alternate_buffer = None;
+                    }
+
                     _ => {
                         println!("Unknown escape code: {:?}", code);
                     }
@@ -200,17 +210,7 @@ impl Terminal {
     }
 
     pub fn resize(&mut self, new_size: TerminalSize) -> Task<Message> {
-        self.buffer.resize(new_size.rows, new_size.cols);
-
-        // Move the cursor if window shrinks
-        if self.cursor.col >= self.buffer.cols {
-            self.cursor.up(self.cursor.col - self.buffer.cols);
-        }
-
-        if self.cursor.row >= self.buffer.rows {
-            self.cursor.left(self.cursor.row - self.buffer.rows);
-        }
-
+        self.buffer_mut().resize(new_size.rows, new_size.cols);
         self.send(TermMessage::WindowResized(new_size.cols, new_size.rows))
     }
 

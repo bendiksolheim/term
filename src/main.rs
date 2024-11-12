@@ -6,9 +6,9 @@ mod terminal;
 mod window;
 
 mod structs {
+    pub mod buffer;
     pub mod cell;
     pub mod cursor;
-    pub mod grid;
     pub mod terminalsize;
 }
 mod term {
