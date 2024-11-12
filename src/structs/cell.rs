@@ -63,6 +63,14 @@ impl CellStyle {
     }
 
     pub fn modify(&mut self, attributes: &[u8]) {
+        if attributes.is_empty() {
+            self.parse_attribute(Graphics::Reset);
+        } else {
+            self.modify_recursive(attributes);
+        }
+    }
+
+    fn modify_recursive(&mut self, attributes: &[u8]) {
         match attributes[..] {
             [] => {
                 // do nothing, every attribute is consumed
@@ -71,30 +79,30 @@ impl CellStyle {
             [38, 2, r, g, b, ref rest @ ..] => {
                 // parse 24 bit color, set as foreground
                 self.parse_attribute(Graphics::SetForeground(TerminalColor::TwentyFourBit(r, g, b)));
-                self.modify(rest);
+                self.modify_recursive(rest);
             }
 
             [48, 2, r, g, b, ref rest @ ..] => {
                 // parse 24 bit color, set as background
                 self.parse_attribute(Graphics::SetBackground(TerminalColor::TwentyFourBit(r, g, b)));
-                self.modify(rest);
+                self.modify_recursive(rest);
             }
 
             [38, 5, n, ref rest @ ..] => {
                 // parse 8 bit color, set as foreground
                 self.parse_attribute(Graphics::SetForeground(TerminalColor::EightBit(n)));
-                self.modify(rest);
+                self.modify_recursive(rest);
             }
 
             [48, 5, n, ref rest @ ..] => {
                 // parse 8 bit color, set as background
                 self.parse_attribute(Graphics::SetBackground(TerminalColor::EightBit(n)));
-                self.modify(rest);
+                self.modify_recursive(rest);
             }
 
             [n, ref rest @ ..] => {
                 self.parse_attribute(Graphics::parse_ansi(&n));
-                self.modify(rest);
+                self.modify_recursive(rest);
             }
         }
     }
