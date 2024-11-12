@@ -22,12 +22,12 @@ use crate::{
 pub struct Terminal {
     application_mode: bool, // Changes how cursor keys are coded
     newline_mode: bool,     // Interprets \n as NL LF instead of just NL
-    pub size: TerminalSize,
+    size: TerminalSize,
     cursor_visible: bool,
     buffer: Buffer<Cell>,
     alternate_buffer: Option<Buffer<Cell>>,
     current_cell_style: CellStyle,
-    pub sender: Option<mpsc::Sender<term::term::TermMessage>>,
+    sender: Option<mpsc::Sender<term::term::TermMessage>>,
 }
 
 impl Terminal {
