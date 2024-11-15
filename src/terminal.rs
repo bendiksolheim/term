@@ -215,6 +215,10 @@ impl Terminal {
                         // Already in standard ASCII character set, don’t do anything
                     }
 
+                    AnsiSequence::SetAlternateKeypad | AnsiSequence::SetNumericKeypad => {
+                        // We don’t support keypad right now
+                    }
+
                     _ => {
                         println!("Unknown escape code: {:?}", code);
                     }
