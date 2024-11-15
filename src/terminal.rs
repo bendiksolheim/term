@@ -1,4 +1,4 @@
-use crate::ansi_parser::{self, AnsiParser};
+use crate::ansi_parser::{self, AnsiParser, AnsiSequence};
 use iced::{
     futures::{channel::mpsc, SinkExt},
     Task,
@@ -116,102 +116,102 @@ impl Terminal {
                 }),
 
                 ansi_parser::Output::Escape(code) => match code {
-                    ansi_parser::AnsiSequence::CursorPos(row, col) => {
+                    AnsiSequence::CursorPos(row, col) => {
                         // Cursor position starts at 1,1 in terminal, while grid starts at 0,0
                         let grid_row = (row - 1) as usize;
                         let grid_col = (col - 1) as usize;
                         self.buffer_mut().cursor.set_position(grid_row, grid_col);
                     }
 
-                    ansi_parser::AnsiSequence::CursorUp(n) => {
+                    AnsiSequence::CursorUp(n) => {
                         self.buffer_mut().cursor.up(n.try_into().unwrap());
                     }
 
-                    ansi_parser::AnsiSequence::CursorDown(n) => {
+                    AnsiSequence::CursorDown(n) => {
                         self.buffer_mut().cursor.down(n.try_into().unwrap());
                     }
 
-                    ansi_parser::AnsiSequence::CursorForward(n) => {
+                    AnsiSequence::CursorForward(n) => {
                         self.buffer_mut().cursor.right(usize::try_from(n).unwrap());
                     }
 
-                    ansi_parser::AnsiSequence::CursorBackward(n) => {
+                    AnsiSequence::CursorBackward(n) => {
                         self.buffer_mut().cursor.left(usize::try_from(n).unwrap());
                     }
 
-                    ansi_parser::AnsiSequence::CursorSave => {
+                    AnsiSequence::CursorSave => {
                         self.buffer_mut().save_cursor();
                     }
 
-                    ansi_parser::AnsiSequence::CursorRestore => {
+                    AnsiSequence::CursorRestore => {
                         self.buffer_mut().restore_cursor();
                     }
 
-                    ansi_parser::AnsiSequence::EraseDisplay(n) => {
+                    AnsiSequence::EraseDisplay(n) => {
                         let cursor = self.buffer().cursor.clone();
                         self.buffer_mut().clear_selection(Selection::ToEndOfDisplay(cursor));
                     }
 
-                    ansi_parser::AnsiSequence::EraseLine => {
+                    AnsiSequence::EraseLine => {
                         let cursor = self.buffer().cursor.clone();
                         self.buffer_mut().clear_selection(Selection::ToEndOfLine(cursor));
                     }
 
-                    ansi_parser::AnsiSequence::SetGraphicsMode(styles) => {
+                    AnsiSequence::SetGraphicsMode(styles) => {
                         self.current_cell_style.modify(&styles);
                     }
 
-                    ansi_parser::AnsiSequence::HideCursor => {
+                    AnsiSequence::HideCursor => {
                         self.cursor_visible = false;
                     }
 
-                    ansi_parser::AnsiSequence::ShowCursor => {
+                    AnsiSequence::ShowCursor => {
                         self.cursor_visible = true;
                     }
 
-                    ansi_parser::AnsiSequence::CursorToApp => {
+                    AnsiSequence::CursorToApp => {
                         self.application_mode = true;
                     }
 
-                    ansi_parser::AnsiSequence::SetCursorKeyToCursor => {
+                    AnsiSequence::SetCursorKeyToCursor => {
                         self.application_mode = false;
                     }
 
-                    ansi_parser::AnsiSequence::SetNewLineMode => {
+                    AnsiSequence::SetNewLineMode => {
                         self.newline_mode = true;
                     }
 
-                    ansi_parser::AnsiSequence::SetLineFeedMode => {
+                    AnsiSequence::SetLineFeedMode => {
                         self.newline_mode = false;
                     }
 
-                    ansi_parser::AnsiSequence::EnableBracketedPasteMode => {
+                    AnsiSequence::EnableBracketedPasteMode => {
                         // TODO: Must be implemented before pasting
                     }
 
-                    ansi_parser::AnsiSequence::DisableBracketedPasteMode => {
+                    AnsiSequence::DisableBracketedPasteMode => {
                         // TODO: Must be implemented before pasting
                     }
 
-                    ansi_parser::AnsiSequence::ShowAlternateBuffer => {
+                    AnsiSequence::ShowAlternateBuffer => {
                         let rows = self.buffer().rows;
                         let cols = self.buffer().cols;
                         self.alternate_buffer = Some(Buffer::new(rows, cols, vec![Cell::default(); rows * cols]))
                     }
 
-                    ansi_parser::AnsiSequence::ShowNormalBuffer => {
+                    AnsiSequence::ShowNormalBuffer => {
                         self.alternate_buffer = None;
                     }
 
-                    ansi_parser::AnsiSequence::EnableFocusMode => {
+                    AnsiSequence::EnableFocusMode => {
                         self.focus_mode = true;
                     }
 
-                    ansi_parser::AnsiSequence::DisableFocusMode => {
+                    AnsiSequence::DisableFocusMode => {
                         self.focus_mode = false;
                     }
 
-                    ansi_parser::AnsiSequence::SetUSG0 => {
+                    AnsiSequence::SetUSG0 => {
                         // Already in standard ASCII character set, don’t do anything
                     }
 
