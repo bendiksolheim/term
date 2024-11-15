@@ -10,7 +10,7 @@ use crate::{
     structs::{cell::Cell, cursor::Cursor, terminalsize::TerminalSize},
     term::{colors::TerminalColor, term},
     terminal::Terminal,
-    window::Window,
+    window::{Window, WindowFocus},
     Message,
 };
 
@@ -79,6 +79,10 @@ impl Application {
                     Task::none()
                 }
             }
+            Message::WindowFocus(focus) => match focus {
+                WindowFocus::Focus => self.terminal.focus(),
+                WindowFocus::Unfocus => self.terminal.unfocus(),
+            },
         }
     }
 
@@ -114,6 +118,8 @@ impl Application {
             iced::Event::Mouse(_event) => None,
             iced::Event::Window(event) => match event {
                 iced::window::Event::Resized(size) => Some(Message::WindowResized(size)),
+                iced::window::Event::Focused => Some(Message::WindowFocus(WindowFocus::Focus)),
+                iced::window::Event::Unfocused => Some(Message::WindowFocus(WindowFocus::Unfocus)),
                 _ => None,
             },
             iced::Event::Touch(_event) => None,

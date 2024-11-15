@@ -41,6 +41,12 @@ pub struct WindowConfig {
     pub padding: Padding,
 }
 
+#[derive(Debug, Clone)]
+pub enum WindowFocus {
+    Focus,
+    Unfocus,
+}
+
 fn terminal_window_settings(size: Size) -> Settings {
     Settings {
         decorations: true,

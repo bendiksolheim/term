@@ -22,6 +22,7 @@ use crate::{
 pub struct Terminal {
     application_mode: bool, // Changes how cursor keys are coded
     newline_mode: bool,     // Interprets \n as NL LF instead of just NL
+    focus_mode: bool,       // When enabled, sends \e[I on focus and \e[O on defocus
     size: TerminalSize,
     cursor_visible: bool,
     buffer: Buffer<Cell>,
@@ -38,6 +39,7 @@ impl Terminal {
         Self {
             application_mode: false,
             newline_mode: false,
+            focus_mode: false,
             size,
             cursor_visible: true,
             buffer: Buffer::new(rows, cols, vec![Cell::default(); rows * cols]),
@@ -201,11 +203,35 @@ impl Terminal {
                         self.alternate_buffer = None;
                     }
 
+                    ansi_parser::AnsiSequence::EnableFocusMode => {
+                        self.focus_mode = true;
+                    }
+
+                    ansi_parser::AnsiSequence::DisableFocusMode => {
+                        self.focus_mode = false;
+                    }
+
                     _ => {
                         println!("Unknown escape code: {:?}", code);
                     }
                 },
             }
+        }
+    }
+
+    pub fn focus(&self) -> Task<Message> {
+        if self.focus_mode {
+            self.send(TermMessage::Bytes("\x1b[I".into()))
+        } else {
+            Task::none()
+        }
+    }
+
+    pub fn unfocus(&self) -> Task<Message> {
+        if self.focus_mode {
+            self.send(TermMessage::Bytes("\x1b[O".into()))
+        } else {
+            Task::none()
         }
     }
 

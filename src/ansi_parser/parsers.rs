@@ -174,6 +174,10 @@ tag_parser!(set_origin_abs, "[?6l", AnsiSequence::SetOriginAbsolute);
 tag_parser!(reset_auto_wrap, "[?7l", AnsiSequence::ResetAutoWrap);
 tag_parser!(reset_auto_repeat, "[?8l", AnsiSequence::ResetAutoRepeat);
 tag_parser!(reset_interlacing, "[?9l", AnsiSequence::ResetInterlacing);
+tag_parser!(enable_focus_mode, "[?1004h", AnsiSequence::EnableFocusMode);
+tag_parser!(disable_focus_mode, "[?1004l", AnsiSequence::DisableFocusMode);
+tag_parser!(set_alternate_buffer, "[?1049h", AnsiSequence::ShowAlternateBuffer);
+tag_parser!(set_normal_buffer, "[?1049l", AnsiSequence::ShowNormalBuffer);
 tag_parser!(
     enable_bracketed_paste_mode,
     "[?2004h",
@@ -184,8 +188,6 @@ tag_parser!(
     "[?2004l",
     AnsiSequence::DisableBracketedPasteMode
 );
-tag_parser!(set_alternate_buffer, "[?1049h", AnsiSequence::ShowAlternateBuffer);
-tag_parser!(set_normal_buffer, "[?1049l", AnsiSequence::ShowNormalBuffer);
 tag_parser!(set_alternate_keypad, "=", AnsiSequence::SetAlternateKeypad);
 tag_parser!(set_numeric_keypad, ">", AnsiSequence::SetNumericKeypad);
 tag_parser!(set_uk_g0, "(A", AnsiSequence::SetUKG0);
@@ -243,16 +245,18 @@ fn combined<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str
             reset_auto_wrap,
             reset_auto_repeat,
             reset_interlacing,
+            enable_focus_mode,
+            disable_focus_mode,
             enable_bracketed_paste_mode,
             disable_bracketed_paste_mode,
             set_alternate_buffer,
             set_normal_buffer,
             set_top_and_bottom,
             set_alternate_keypad,
-            set_numeric_keypad,
-            set_uk_g0,
         )),
         alt((
+            set_numeric_keypad,
+            set_uk_g0,
             set_uk_g1,
             set_us_g0,
             set_us_g1,

@@ -23,6 +23,7 @@ mod term {
 use crate::config::Config;
 use application::Application;
 use iced::{window::Id, Size};
+use window::WindowFocus;
 
 fn main() -> iced::Result {
     let settings = settings();
@@ -50,4 +51,5 @@ pub enum Message {
     TerminalOutput(term::term::Event),
     WindowCreated(Id),
     WindowResized(Size),
+    WindowFocus(WindowFocus),
 }

@@ -79,6 +79,8 @@ test_parser!(set_origin_rel, "\u{1b}[?6h");
 test_parser!(set_auto_wrap, "\u{1b}[?7h");
 test_parser!(set_auto_repeat, "\u{1b}[?8h");
 test_parser!(set_interlacing, "\u{1b}[?9h");
+test_parser!(enable_focus_mode, "\u{1b}[?1004h");
+test_parser!(disable_focus_mode, "\u{1b}[?1004l");
 test_parser!(enable_bracketed_paste_mode, "\u{1b}[?2004h");
 test_parser!(disable_bracketed_paste_mode, "\u{1b}[?2004l");
 
