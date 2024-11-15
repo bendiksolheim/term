@@ -211,6 +211,10 @@ impl Terminal {
                         self.focus_mode = false;
                     }
 
+                    ansi_parser::AnsiSequence::SetUSG0 => {
+                        // Already in standard ASCII character set, don’t do anything
+                    }
+
                     _ => {
                         println!("Unknown escape code: {:?}", code);
                     }
