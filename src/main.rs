@@ -2,23 +2,10 @@ mod ansi_parser;
 mod application;
 mod config;
 mod font;
+mod structs;
+mod term;
 mod terminal;
 mod window;
-
-mod structs {
-    pub mod buffer;
-    pub mod cell;
-    pub mod cursor;
-    pub mod terminalsize;
-}
-mod term {
-    pub mod colors;
-    pub mod font;
-    pub mod graphics;
-    pub mod pty_reader;
-    pub mod term;
-    pub mod terminal_output;
-}
 
 use crate::config::Config;
 use application::Application;
