@@ -171,8 +171,20 @@ tag_parser!(set_origin_abs, "[?6l", CSISequence::SetOriginAbsolute);
 tag_parser!(reset_auto_wrap, "[?7l", CSISequence::ResetAutoWrap);
 tag_parser!(reset_auto_repeat, "[?8l", CSISequence::ResetAutoRepeat);
 tag_parser!(reset_interlacing, "[?9l", CSISequence::ResetInterlacing);
+tag_parser!(
+    enable_motion_mouse_tracking,
+    "[?1002h",
+    CSISequence::EnableMotionMouseTracking
+);
+tag_parser!(
+    disable_motion_mouse_tracking,
+    "[?1002l",
+    CSISequence::DisableMotionMouseTracking
+);
 tag_parser!(enable_focus_mode, "[?1004h", CSISequence::EnableFocusMode);
 tag_parser!(disable_focus_mode, "[?1004l", CSISequence::DisableFocusMode);
+tag_parser!(enable_sgr_mouse_mode, "[?1006h", CSISequence::EnableSGRMouseMode);
+tag_parser!(disable_sgr_mouse_mode, "[?1006l", CSISequence::DisableSGRMouseMode);
 tag_parser!(set_alternate_buffer, "[?1049h", CSISequence::ShowAlternateBuffer);
 tag_parser!(set_normal_buffer, "[?1049l", CSISequence::ShowNormalBuffer);
 tag_parser!(
@@ -228,9 +240,15 @@ fn combined<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>
             reset_auto_wrap,
             reset_auto_repeat,
             reset_interlacing,
+            enable_motion_mouse_tracking,
+            disable_motion_mouse_tracking,
             enable_focus_mode,
             disable_focus_mode,
+            enable_sgr_mouse_mode,
+            disable_sgr_mouse_mode,
             enable_bracketed_paste_mode,
+        )),
+        alt((
             disable_bracketed_paste_mode,
             set_alternate_buffer,
             set_normal_buffer,
@@ -240,10 +258,6 @@ fn combined<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>
     .parse_next(input)
 }
 
-// pub fn parse_csi_sequence(input: &str) -> IResult<&str, CSISequence> {
-//     preceded("\u{1b}", combined).parse_peek(input)
-// }
-
 pub fn parse_csi_sequence<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
     preceded("\u{1b}", combined)
         .map(|a| AnsiSequence::CSI(a))
@@ -252,7 +266,6 @@ pub fn parse_csi_sequence<'s>(input: &mut &'s str) -> PResult<AnsiSequence, Inpu
 
 #[cfg(test)]
 mod tests {
-
     use crate::ansi_parser::ansi_sequences::{AnsiSequence, CSISequence, Output};
     use crate::ansi_parser::parser::parse_sequence;
     use crate::ansi_parser::traits::AnsiParser;
@@ -347,6 +360,10 @@ mod tests {
     test_parser!(reset_auto_wrap, "\u{1b}[?7l");
     test_parser!(reset_auto_repeat, "\u{1b}[?8l");
     test_parser!(reset_interlacing, "\u{1b}[?9l");
+    test_parser!(enable_motion_mouse_tracking, "\u{1b}[?1002h");
+    test_parser!(disable_motion_mouse_tracking, "\u{1b}[?1002l");
+    test_parser!(enable_sgr_mouse_mode, "\u{1b}[?1006h");
+    test_parser!(disable_sgr_mouse_mode, "\u{1b}[?1006l");
 
     #[test]
     fn test_parser_iterator() {
@@ -394,5 +411,15 @@ mod tests {
                 Output::TextBlock("[33mFoobar")
             ]
         );
+    }
+
+    #[test]
+    fn test_cursor_pos() {
+        let pos = CSISequence::CursorPos(5, 20);
+        let mut buff = String::new();
+
+        write!(&mut buff, "{}", pos).expect("failed to write");
+
+        assert_eq!(buff, "\x1b[5;20H");
     }
 }

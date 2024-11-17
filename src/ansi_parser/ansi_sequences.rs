@@ -1,6 +1,4 @@
-#[cfg(test)]
-mod tests;
-
+use core::fmt::{Display, Formatter, Result as DisplayResult};
 use heapless::Vec;
 
 #[derive(Debug, PartialEq, Clone)]
@@ -10,7 +8,6 @@ pub enum AnsiSequence {
     ESC(ESCSequence),
 }
 
-///The following are the implemented ANSI escape sequences. More to be added.
 #[derive(Debug, PartialEq, Clone)]
 pub enum CSISequence {
     Escape,
@@ -47,8 +44,12 @@ pub enum CSISequence {
     ResetAutoWrap,
     ResetAutoRepeat,
     ResetInterlacing,
+    EnableMotionMouseTracking,
+    DisableMotionMouseTracking,
     EnableFocusMode,
     DisableFocusMode,
+    EnableSGRMouseMode,
+    DisableSGRMouseMode,
     ShowAlternateBuffer,
     ShowNormalBuffer,
     EnableBracketedPasteMode,
@@ -78,8 +79,6 @@ pub enum ESCSequence {
     SetG0AltAndSpecialGraph,
     SetG1AltAndSpecialGraph,
 }
-
-use core::fmt::{Display, Formatter, Result as DisplayResult};
 
 impl Display for AnsiSequence {
     fn fmt(&self, f: &mut Formatter<'_>) -> DisplayResult {
@@ -144,8 +143,12 @@ impl Display for CSISequence {
             ResetAutoWrap => write!(formatter, "?7l"),
             ResetAutoRepeat => write!(formatter, "?8l"),
             ResetInterlacing => write!(formatter, "?9l"),
+            EnableMotionMouseTracking => write!(formatter, "?1002h"),
+            DisableMotionMouseTracking => write!(formatter, "?1002l"),
             EnableFocusMode => write!(formatter, "?1004h"),
             DisableFocusMode => write!(formatter, "?1004l"),
+            EnableSGRMouseMode => write!(formatter, "?1006h"),
+            DisableSGRMouseMode => write!(formatter, "?1006l"),
             ShowAlternateBuffer => write!(formatter, "?1049h"),
             ShowNormalBuffer => write!(formatter, "?1049l"),
             EnableBracketedPasteMode => write!(formatter, "?2004h"),

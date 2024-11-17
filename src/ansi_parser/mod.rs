@@ -4,5 +4,4 @@ mod parsers;
 mod traits;
 
 pub use ansi_sequences::*;
-// pub use parsers::parse_escape;
 pub use traits::*;
