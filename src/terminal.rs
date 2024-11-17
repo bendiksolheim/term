@@ -1,4 +1,4 @@
-use crate::ansi_parser::{self, AnsiParser, AnsiSequence};
+use crate::ansi_parser::{self, AnsiParser, CSISequence, ESCSequence};
 use iced::{
     futures::{channel::mpsc, SinkExt},
     Task,
@@ -115,113 +115,118 @@ impl Terminal {
                     self.buffer_mut().set(c, current_cell_style);
                 }),
 
-                ansi_parser::Output::Escape(code) => match code {
-                    AnsiSequence::CursorPos(row, col) => {
-                        // Cursor position starts at 1,1 in terminal, while grid starts at 0,0
-                        let grid_row = (row - 1) as usize;
-                        let grid_col = (col - 1) as usize;
-                        self.buffer_mut().cursor.set_position(grid_row, grid_col);
+                ansi_parser::Output::AnsiSequence(code) => match code {
+                    ansi_parser::AnsiSequence::OSC(_osc) => {
+                        // do nothing as of now
                     }
+                    ansi_parser::AnsiSequence::ESC(esc) => match esc {
+                        ESCSequence::SetAlternateKeypad | ESCSequence::SetNumericKeypad => {
+                            // We don’t support keypad right now
+                        }
+                        _ => {
+                            println!("Unknown ESC code: {:?}", esc);
+                        }
+                    },
+                    ansi_parser::AnsiSequence::CSI(csi) => match csi {
+                        CSISequence::CursorPos(row, col) => {
+                            // Cursor position starts at 1,1 in terminal, while grid starts at 0,0
+                            let grid_row = (row - 1) as usize;
+                            let grid_col = (col - 1) as usize;
+                            self.buffer_mut().cursor.set_position(grid_row, grid_col);
+                        }
 
-                    AnsiSequence::CursorUp(n) => {
-                        self.buffer_mut().cursor.up(n.try_into().unwrap());
-                    }
+                        CSISequence::CursorUp(n) => {
+                            self.buffer_mut().cursor.up(n.try_into().unwrap());
+                        }
 
-                    AnsiSequence::CursorDown(n) => {
-                        self.buffer_mut().cursor.down(n.try_into().unwrap());
-                    }
+                        CSISequence::CursorDown(n) => {
+                            self.buffer_mut().cursor.down(n.try_into().unwrap());
+                        }
 
-                    AnsiSequence::CursorForward(n) => {
-                        self.buffer_mut().cursor.right(usize::try_from(n).unwrap());
-                    }
+                        CSISequence::CursorForward(n) => {
+                            self.buffer_mut().cursor.right(usize::try_from(n).unwrap());
+                        }
 
-                    AnsiSequence::CursorBackward(n) => {
-                        self.buffer_mut().cursor.left(usize::try_from(n).unwrap());
-                    }
+                        CSISequence::CursorBackward(n) => {
+                            self.buffer_mut().cursor.left(usize::try_from(n).unwrap());
+                        }
 
-                    AnsiSequence::CursorSave => {
-                        self.buffer_mut().save_cursor();
-                    }
+                        CSISequence::CursorSave => {
+                            self.buffer_mut().save_cursor();
+                        }
 
-                    AnsiSequence::CursorRestore => {
-                        self.buffer_mut().restore_cursor();
-                    }
+                        CSISequence::CursorRestore => {
+                            self.buffer_mut().restore_cursor();
+                        }
 
-                    AnsiSequence::EraseDisplay(n) => {
-                        let cursor = self.buffer().cursor.clone();
-                        self.buffer_mut().clear_selection(Selection::ToEndOfDisplay(cursor));
-                    }
+                        CSISequence::EraseDisplay(n) => {
+                            let cursor = self.buffer().cursor.clone();
+                            self.buffer_mut().clear_selection(Selection::ToEndOfDisplay(cursor));
+                        }
 
-                    AnsiSequence::EraseLine => {
-                        let cursor = self.buffer().cursor.clone();
-                        self.buffer_mut().clear_selection(Selection::ToEndOfLine(cursor));
-                    }
+                        CSISequence::EraseLine => {
+                            let cursor = self.buffer().cursor.clone();
+                            self.buffer_mut().clear_selection(Selection::ToEndOfLine(cursor));
+                        }
 
-                    AnsiSequence::SetGraphicsMode(styles) => {
-                        self.current_cell_style.modify(&styles);
-                    }
+                        CSISequence::SetGraphicsMode(styles) => {
+                            self.current_cell_style.modify(&styles);
+                        }
 
-                    AnsiSequence::HideCursor => {
-                        self.cursor_visible = false;
-                    }
+                        CSISequence::HideCursor => {
+                            self.cursor_visible = false;
+                        }
 
-                    AnsiSequence::ShowCursor => {
-                        self.cursor_visible = true;
-                    }
+                        CSISequence::ShowCursor => {
+                            self.cursor_visible = true;
+                        }
 
-                    AnsiSequence::CursorToApp => {
-                        self.application_mode = true;
-                    }
+                        CSISequence::CursorToApp => {
+                            self.application_mode = true;
+                        }
 
-                    AnsiSequence::SetCursorKeyToCursor => {
-                        self.application_mode = false;
-                    }
+                        CSISequence::SetCursorKeyToCursor => {
+                            self.application_mode = false;
+                        }
 
-                    AnsiSequence::SetNewLineMode => {
-                        self.newline_mode = true;
-                    }
+                        CSISequence::SetNewLineMode => {
+                            self.newline_mode = true;
+                        }
 
-                    AnsiSequence::SetLineFeedMode => {
-                        self.newline_mode = false;
-                    }
+                        CSISequence::SetLineFeedMode => {
+                            self.newline_mode = false;
+                        }
 
-                    AnsiSequence::EnableBracketedPasteMode => {
-                        // TODO: Must be implemented before pasting
-                    }
+                        CSISequence::EnableBracketedPasteMode => {
+                            // TODO: Must be implemented before pasting
+                        }
 
-                    AnsiSequence::DisableBracketedPasteMode => {
-                        // TODO: Must be implemented before pasting
-                    }
+                        CSISequence::DisableBracketedPasteMode => {
+                            // TODO: Must be implemented before pasting
+                        }
 
-                    AnsiSequence::ShowAlternateBuffer => {
-                        let rows = self.buffer().rows;
-                        let cols = self.buffer().cols;
-                        self.alternate_buffer = Some(Buffer::new(rows, cols, vec![Cell::default(); rows * cols]))
-                    }
+                        CSISequence::ShowAlternateBuffer => {
+                            let rows = self.buffer().rows;
+                            let cols = self.buffer().cols;
+                            self.alternate_buffer = Some(Buffer::new(rows, cols, vec![Cell::default(); rows * cols]))
+                        }
 
-                    AnsiSequence::ShowNormalBuffer => {
-                        self.alternate_buffer = None;
-                    }
+                        CSISequence::ShowNormalBuffer => {
+                            self.alternate_buffer = None;
+                        }
 
-                    AnsiSequence::EnableFocusMode => {
-                        self.focus_mode = true;
-                    }
+                        CSISequence::EnableFocusMode => {
+                            self.focus_mode = true;
+                        }
 
-                    AnsiSequence::DisableFocusMode => {
-                        self.focus_mode = false;
-                    }
+                        CSISequence::DisableFocusMode => {
+                            self.focus_mode = false;
+                        }
 
-                    AnsiSequence::SetUSG0 => {
-                        // Already in standard ASCII character set, don’t do anything
-                    }
-
-                    AnsiSequence::SetAlternateKeypad | AnsiSequence::SetNumericKeypad => {
-                        // We don’t support keypad right now
-                    }
-
-                    _ => {
-                        println!("Unknown escape code: {:?}", code);
-                    }
+                        _ => {
+                            println!("Unknown CSI code: {:?}", csi);
+                        }
+                    },
                 },
             }
         }

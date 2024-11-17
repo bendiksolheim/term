@@ -1,5 +1,5 @@
-use crate::ansi_parser::enums::Output;
-use crate::ansi_parser::parsers::parse_escape;
+use crate::ansi_parser::ansi_sequences::Output;
+use crate::ansi_parser::parser::parse_sequence;
 
 pub trait AnsiParser {
     fn ansi_parse(&self) -> AnsiParseIterator<'_>;
@@ -33,11 +33,11 @@ impl<'a> Iterator for AnsiParseIterator<'a> {
         let pos = self.dat.find('\u{1b}');
         if let Some(loc) = pos {
             if loc == 0 {
-                let res = parse_escape(&self.dat[loc..]);
+                let res = parse_sequence(&self.dat[loc..]);
 
                 if let Ok(ret) = res {
                     self.dat = ret.0;
-                    Some(Output::Escape(ret.1))
+                    Some(Output::AnsiSequence(ret.1))
                 } else {
                     let pos = self.dat[(loc + 1)..].find('\u{1b}');
                     if let Some(loc) = pos {
