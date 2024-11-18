@@ -69,6 +69,12 @@ fn cursor_backward<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&
         .parse_next(input)
 }
 
+fn cursor_style<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
+    ("[", parse_u8, " ", "q")
+        .map(|(_, style, _, _)| CSISequence::CursorStyle(style))
+        .parse_next(input)
+}
+
 fn graphics_mode1<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
     delimited("[", parse_u8, "m")
         .map(|val| {
@@ -210,6 +216,7 @@ fn combined<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>
             cursor_down,
             cursor_forward,
             cursor_backward,
+            cursor_style,
             cursor_save,
             cursor_restore,
             erase_display,
@@ -224,9 +231,9 @@ fn combined<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>
             set_col_132,
             set_smooth_scroll,
             set_reverse_video,
-            set_origin_rel,
         )),
         alt((
+            set_origin_rel,
             set_auto_wrap,
             set_auto_repeat,
             set_interlacing,
@@ -246,9 +253,9 @@ fn combined<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>
             disable_focus_mode,
             enable_sgr_mouse_mode,
             disable_sgr_mouse_mode,
-            enable_bracketed_paste_mode,
         )),
         alt((
+            enable_bracketed_paste_mode,
             disable_bracketed_paste_mode,
             set_alternate_buffer,
             set_normal_buffer,
@@ -316,6 +323,7 @@ mod tests {
     test_def_val_parser!(cursor_down, "\u{1b}[5B");
     test_def_val_parser!(cursor_forward, "\u{1b}[5C");
     test_def_val_parser!(cursor_backward, "\u{1b}[5D");
+    test_parser!(cursor_block_style, "\u{1b}[2 q");
     test_parser!(cursor_save, "\u{1b}[s");
     test_parser!(cursor_restore, "\u{1b}[u");
 

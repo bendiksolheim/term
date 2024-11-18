@@ -16,6 +16,7 @@ pub enum CSISequence {
     CursorDown(u32),
     CursorForward(u32),
     CursorBackward(u32),
+    CursorStyle(u8),
     CursorSave,
     CursorRestore,
     EraseDisplay(u8),
@@ -103,6 +104,7 @@ impl Display for CSISequence {
             CursorDown(amt) => write!(formatter, "{}B", amt),
             CursorForward(amt) => write!(formatter, "{}C", amt),
             CursorBackward(amt) => write!(formatter, "{}D", amt),
+            CursorStyle(s) => write!(formatter, "{} q", s),
             CursorSave => write!(formatter, "s"),
             CursorRestore => write!(formatter, "u"),
             EraseDisplay(n) => match n {
