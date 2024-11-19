@@ -10,12 +10,17 @@ mod window;
 use crate::config::Config;
 use application::Application;
 use iced::{window::Id, Size};
+use term::colors::TerminalColor;
 use window::WindowFocus;
 
 fn main() -> iced::Result {
     let settings = settings();
     let config = Config::new();
     iced::daemon("Terminal", Application::update, Application::view)
+        .style(|_state, _theme| iced::daemon::Appearance {
+            background_color: TerminalColor::Black.background_color(),
+            text_color: TerminalColor::White.foreground_color(),
+        })
         .settings(settings)
         .subscription(Application::subscription)
         .run_with(move || Application::new(config))

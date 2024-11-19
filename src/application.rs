@@ -131,24 +131,49 @@ impl Application {
 }
 
 fn cell_view<'a>(cursor: &Cursor, x: usize, y: usize, cell: &Cell, font_size: f32) -> Element<'a, Message> {
-    let style = if cursor.col == x && cursor.row == y {
-        let mut clone = cell.style.clone();
-        clone.background = TerminalColor::White;
-        clone.foreground = TerminalColor::Black;
-        clone
-    } else {
-        cell.style.clone()
-    };
-
-    let container_style = container::Style {
+    let mut container_style = container::Style {
         // TODO: Do I really need to clone here?
-        text_color: Some(style.clone().foreground_color().foreground_color()),
-        background: Some(iced::Background::Color(style.background_color().background_color())),
+        text_color: Some(cell.style.clone().foreground_color().foreground_color()),
+        background: Some(iced::Background::Color(
+            cell.style.clone().background_color().background_color(),
+        )),
         border: iced::Border::default()
             .width(0.0)
             .color(TerminalColor::Cyan.foreground_color()),
         ..Default::default()
     };
+
+    if cursor.col == x && cursor.row == y {
+        use crate::structs::cursor::CursorStyle::*;
+        match cursor.style {
+            BlinkingBlock | SteadyBlock => {
+                container_style.text_color = Some(TerminalColor::Black.foreground_color());
+                container_style.background = Some(iced::Background::Color(TerminalColor::White.background_color()));
+            }
+            BlinkingUnderline | SteadyUnderline => {
+                let gradient = iced::gradient::Linear::new(0.0)
+                    .add_stop(0.0, TerminalColor::White.background_color())
+                    .add_stop(0.1, TerminalColor::White.background_color())
+                    .add_stop(0.11, TerminalColor::Black.background_color())
+                    .add_stop(1.0, TerminalColor::Black.background_color());
+                container_style.background = Some(iced::Background::Gradient(iced::Gradient::Linear(gradient)));
+            }
+            BlinkingBar | SteadyBar => {
+                let gradient = iced::gradient::Linear::new(1.57079633) // PI / 2
+                    .add_stop(0.0, TerminalColor::White.background_color())
+                    .add_stop(0.1, TerminalColor::White.background_color())
+                    .add_stop(0.1001, TerminalColor::Black.background_color())
+                    .add_stop(1.0, TerminalColor::Black.background_color());
+                container_style.background = Some(iced::Background::Gradient(iced::Gradient::Linear(gradient)));
+            }
+        };
+    }
+    // clone.background = TerminalColor::White;
+    // clone.foreground = TerminalColor::Black;
+    // clone
+    // } else {
+    // cell.style.clone()
+    // };
 
     let text = text(cell.content.to_string()).size(font_size);
 
