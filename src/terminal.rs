@@ -119,14 +119,20 @@ impl Terminal {
                     ansi_parser::AnsiSequence::OSC(_osc) => {
                         // do nothing as of now
                     }
+
                     ansi_parser::AnsiSequence::ESC(esc) => match esc {
                         ESCSequence::SetAlternateKeypad | ESCSequence::SetNumericKeypad => {
                             // We don’t support keypad right now
                         }
+                        ESCSequence::SetUSG0 => {
+                            // Don’t do anything, we assume US ASCII is active
+                        }
+
                         _ => {
                             println!("Unknown ESC code: {:?}", esc);
                         }
                     },
+
                     ansi_parser::AnsiSequence::CSI(csi) => match csi {
                         CSISequence::CursorPos(row, col) => {
                             // Cursor position starts at 1,1 in terminal, while grid starts at 0,0
@@ -160,13 +166,15 @@ impl Terminal {
                         }
 
                         CSISequence::EraseDisplay(n) => {
-                            let cursor = self.buffer().cursor.clone();
-                            self.buffer_mut().clear_selection(Selection::ToEndOfDisplay(cursor));
+                            self.buffer_mut().clear_selection(Selection::ToEndOfDisplay);
                         }
 
                         CSISequence::EraseLine => {
-                            let cursor = self.buffer().cursor.clone();
-                            self.buffer_mut().clear_selection(Selection::ToEndOfLine(cursor));
+                            self.buffer_mut().clear_selection(Selection::ToEndOfLine);
+                        }
+
+                        CSISequence::EraseCharacters(n) => {
+                            self.buffer_mut().clear_selection(Selection::Characters(n));
                         }
 
                         CSISequence::SetGraphicsMode(styles) => {
@@ -221,6 +229,10 @@ impl Terminal {
 
                         CSISequence::DisableFocusMode => {
                             self.focus_mode = false;
+                        }
+
+                        CSISequence::CursorStyle(style) => {
+                            self.buffer_mut().cursor.set_style(style);
                         }
 
                         _ => {

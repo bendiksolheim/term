@@ -21,6 +21,7 @@ pub enum CSISequence {
     CursorRestore,
     EraseDisplay(u8),
     EraseLine,
+    EraseCharacters(u32),
     SetGraphicsMode(Vec<u8, 5>),
     SetMode(u8),
     ResetMode(u8),
@@ -114,6 +115,7 @@ impl Display for CSISequence {
                 _ => unreachable!(),
             },
             EraseLine => write!(formatter, "K"),
+            EraseCharacters(n) => write!(formatter, "{}X", n),
             SetGraphicsMode(vec) => match vec.len() {
                 0 => write!(formatter, "m"),
                 1 => write!(formatter, "{}m", vec[0]),

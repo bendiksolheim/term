@@ -43,16 +43,21 @@ impl<T: Clone + Default> Buffer<T> {
 
     pub fn clear_selection(&mut self, selection: Selection) {
         match selection {
-            Selection::Line(_cursor) => todo!(),
-            Selection::FromStartOfLine(_cursor) => todo!(),
-            Selection::ToEndOfLine(cursor) => {
-                let from = cursor.row * self.cols + cursor.col;
-                let to = (cursor.row + 1) * self.cols;
+            Selection::Line => todo!(),
+            Selection::FromStartOfLine => todo!(),
+            Selection::ToEndOfLine => {
+                let from = self.cursor.row * self.cols + self.cursor.col;
+                let to = (self.cursor.row + 1) * self.cols;
                 self[from..to].fill(T::default());
             }
-            Selection::ToEndOfDisplay(cursor) => {
-                let from = cursor.row * self.cols + cursor.col;
+            Selection::ToEndOfDisplay => {
+                let from = self.cursor.row * self.cols + self.cursor.col;
                 let to = self.data.len();
+                self[from..to].fill(T::default());
+            }
+            Selection::Characters(n) => {
+                let from = self.cursor.row * self.cols + self.cursor.col;
+                let to = from + n as usize;
                 self[from..to].fill(T::default());
             }
         }
@@ -154,10 +159,11 @@ impl<T> Index<std::ops::Range<usize>> for Buffer<T> {
 }
 
 pub enum Selection {
-    Line(Cursor),
-    FromStartOfLine(Cursor),
-    ToEndOfLine(Cursor),
-    ToEndOfDisplay(Cursor),
+    Line,
+    FromStartOfLine,
+    ToEndOfLine,
+    ToEndOfDisplay,
+    Characters(u32),
 }
 
 #[cfg(test)]
