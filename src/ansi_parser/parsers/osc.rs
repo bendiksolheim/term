@@ -13,14 +13,14 @@ macro_rules! tag_parser {
     };
 }
 
-tag_parser!(reset_text_cursor_color, "]112\u{7}", OSCSequence::ResetCursorColor);
+tag_parser!(reset_text_cursor_color, "112\u{7}", OSCSequence::ResetCursorColor);
 
 fn combined<'s>(input: &mut &'s str) -> PResult<OSCSequence, InputError<&'s str>> {
     alt([reset_text_cursor_color]).parse_next(input)
 }
 
 pub fn parse_osc_sequence<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
-    preceded("\u{1b}", combined)
+    preceded("\u{1b}]", combined)
         .map(|a| AnsiSequence::OSC(a))
         .parse_next(input)
 }

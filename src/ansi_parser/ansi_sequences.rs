@@ -10,7 +10,6 @@ pub enum AnsiSequence {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum CSISequence {
-    Escape,
     CursorPos(u32, u32),
     CursorUp(u32),
     CursorDown(u32),
@@ -66,6 +65,7 @@ pub enum OSCSequence {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum ESCSequence {
+    Escape,
     SetAlternateKeypad,
     SetNumericKeypad,
     SetSingleShift2,
@@ -99,7 +99,6 @@ impl Display for CSISequence {
 
         use CSISequence::*;
         match self {
-            Escape => write!(formatter, "\u{1b}"),
             CursorPos(line, col) => write!(formatter, "{};{}H", line, col),
             CursorUp(amt) => write!(formatter, "{}A", amt),
             CursorDown(amt) => write!(formatter, "{}B", amt),
@@ -168,7 +167,7 @@ impl Display for OSCSequence {
 
         use OSCSequence::*;
         match self {
-            ResetCursorColor => write!(formatter, "112\x07"),
+            ResetCursorColor => write!(formatter, "112\u{7}"),
         }
     }
 }
@@ -179,6 +178,7 @@ impl Display for ESCSequence {
 
         use ESCSequence::*;
         match self {
+            Escape => write!(formatter, "\u{1b}"),
             SetAlternateKeypad => write!(formatter, "="),
             SetNumericKeypad => write!(formatter, ">"),
             SetSingleShift2 => write!(formatter, "N"),

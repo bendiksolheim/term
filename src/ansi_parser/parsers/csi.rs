@@ -2,7 +2,7 @@ use crate::ansi_parser::{AnsiSequence, CSISequence};
 
 use heapless::Vec;
 use winnow::ascii::{digit0, digit1};
-use winnow::combinator::{alt, delimited, opt, preceded};
+use winnow::combinator::{alt, delimited, opt, preceded, terminated};
 use winnow::error::InputError;
 use winnow::token::literal;
 use winnow::{PResult, Parser};
@@ -30,53 +30,43 @@ fn parse_def_cursor_int<'s>(input: &mut &'s str) -> PResult<u32, InputError<&'s 
 }
 
 fn cursor_pos<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    (
-        "[",
-        parse_def_cursor_int,
-        opt(";"),
-        parse_def_cursor_int,
-        alt(("H", "f")),
-    )
-        .map(|(_, x, _, y, _)| CSISequence::CursorPos(x, y))
+    (parse_def_cursor_int, opt(";"), parse_def_cursor_int, alt(("H", "f")))
+        .map(|(x, _, y, _)| CSISequence::CursorPos(x, y))
         .parse_next(input)
 }
 
-fn escape<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    "\u{1b}".value(CSISequence::Escape).parse_next(input)
-}
-
 fn cursor_up<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    delimited("[", parse_def_cursor_int, "A")
+    terminated(parse_def_cursor_int, "A")
         .map(|am: u32| CSISequence::CursorUp(am))
         .parse_next(input)
 }
 
 fn cursor_down<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    delimited("[", parse_def_cursor_int, "B")
+    terminated(parse_def_cursor_int, "B")
         .map(|am| CSISequence::CursorDown(am))
         .parse_next(input)
 }
 
 fn cursor_forward<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    delimited("[", parse_def_cursor_int, "C")
+    terminated(parse_def_cursor_int, "C")
         .map(|am| CSISequence::CursorForward(am))
         .parse_next(input)
 }
 
 fn cursor_backward<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    delimited("[", parse_def_cursor_int, "D")
+    terminated(parse_def_cursor_int, "D")
         .map(|am| CSISequence::CursorBackward(am))
         .parse_next(input)
 }
 
 fn cursor_style<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    ("[", parse_u8, " ", "q")
-        .map(|(_, style, _, _)| CSISequence::CursorStyle(style))
+    (parse_u8, " ", "q")
+        .map(|(style, _, _)| CSISequence::CursorStyle(style))
         .parse_next(input)
 }
 
 fn graphics_mode1<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    delimited("[", parse_u8, "m")
+    terminated(parse_u8, "m")
         .map(|val| {
             let mode = Vec::from_slice(&[val]).expect("Vec::from_slice should allocate sufficient size");
             CSISequence::SetGraphicsMode(mode)
@@ -85,8 +75,8 @@ fn graphics_mode1<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'
 }
 
 fn graphics_mode2<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    ("[", parse_u8, ";", parse_u8, "m")
-        .map(|(_, val1, _, val2, _)| {
+    (parse_u8, ";", parse_u8, "m")
+        .map(|(val1, _, val2, _)| {
             let mode = Vec::from_slice(&[val1, val2]).expect("Vec::from_slice should allocate sufficient size");
             CSISequence::SetGraphicsMode(mode)
         })
@@ -94,8 +84,8 @@ fn graphics_mode2<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'
 }
 
 fn graphics_mode3<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    ("[", parse_u8, ";", parse_u8, ";", parse_u8, "m")
-        .map(|(_, val1, _, val2, _, val3, _)| {
+    (parse_u8, ";", parse_u8, ";", parse_u8, "m")
+        .map(|(val1, _, val2, _, val3, _)| {
             let mode = Vec::from_slice(&[val1, val2, val3]).expect("Vec::from_slice should allocate sufficient size");
             CSISequence::SetGraphicsMode(mode)
         })
@@ -103,14 +93,14 @@ fn graphics_mode3<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'
 }
 
 fn graphics_mode4<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    "[m".value(CSISequence::SetGraphicsMode(Vec::new())).parse_next(input)
+    "m".value(CSISequence::SetGraphicsMode(Vec::new())).parse_next(input)
 }
 
 fn graphics_mode5<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
     (
-        "[", parse_u8, ";", parse_u8, ";", parse_u8, ";", parse_u8, ";", parse_u8, "m",
+        parse_u8, ";", parse_u8, ";", parse_u8, ";", parse_u8, ";", parse_u8, "m",
     )
-        .map(|(_, val1, _, val2, _, val3, _, val4, _, val5, _)| {
+        .map(|(val1, _, val2, _, val3, _, val4, _, val5, _)| {
             let mode = Vec::from_slice(&[val1, val2, val3, val4, val5])
                 .expect("Vec::from_slice should allocate sufficient size");
             CSISequence::SetGraphicsMode(mode)
@@ -130,83 +120,83 @@ fn graphics_mode<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s
 }
 
 fn set_mode<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    delimited("[=", parse_u8, "h")
+    delimited("=", parse_u8, "h")
         .map(|val| CSISequence::SetMode(val))
         .parse_next(input)
 }
 
 fn reset_mode<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    delimited("[=", parse_u8, "l")
+    delimited("=", parse_u8, "l")
         .map(|val| CSISequence::ResetMode(val))
         .parse_next(input)
 }
 
 fn set_top_and_bottom<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    ("[", parse_u32, ";", parse_u32, "r")
-        .map(|(_, x, _, y, _)| CSISequence::SetTopAndBottom(x, y))
+    (parse_u32, ";", parse_u32, "r")
+        .map(|(x, _, y, _)| CSISequence::SetTopAndBottom(x, y))
         .parse_next(input)
 }
 
 fn erase_display<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    delimited("[", digit0.map(|s: &str| s.parse::<u8>().unwrap_or(0)), "J")
+    terminated(digit0.map(|s: &str| s.parse::<u8>().unwrap_or(0)), "J")
         .map(|n| CSISequence::EraseDisplay(n))
         .parse_next(input)
 }
 
 fn erase_characters<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
-    ("[", parse_def_cursor_int, "X")
-        .map(|(_, n, _)| CSISequence::EraseCharacters(n))
+    (parse_def_cursor_int, "X")
+        .map(|(n, _)| CSISequence::EraseCharacters(n))
         .parse_next(input)
 }
 
-tag_parser!(cursor_save, "[s", CSISequence::CursorSave);
-tag_parser!(cursor_restore, "[u", CSISequence::CursorRestore);
-tag_parser!(erase_line, "[K", CSISequence::EraseLine);
-tag_parser!(hide_cursor, "[?25l", CSISequence::HideCursor);
-tag_parser!(show_cursor, "[?25h", CSISequence::ShowCursor);
-tag_parser!(cursor_to_app, "[?1h", CSISequence::CursorToApp);
-tag_parser!(set_new_line_mode, "[20h", CSISequence::SetNewLineMode);
-tag_parser!(set_col_132, "[?3h", CSISequence::SetCol132);
-tag_parser!(set_smooth_scroll, "[?4h", CSISequence::SetSmoothScroll);
-tag_parser!(set_reverse_video, "[?5h", CSISequence::SetReverseVideo);
-tag_parser!(set_origin_rel, "[?6h", CSISequence::SetOriginRelative);
-tag_parser!(set_auto_wrap, "[?7h", CSISequence::SetAutoWrap);
-tag_parser!(set_auto_repeat, "[?8h", CSISequence::SetAutoRepeat);
-tag_parser!(set_interlacing, "[?9h", CSISequence::SetInterlacing);
-tag_parser!(set_linefeed, "[20l", CSISequence::SetLineFeedMode);
-tag_parser!(set_cursorkey, "[?1l", CSISequence::SetCursorKeyToCursor);
-tag_parser!(set_vt52, "[?2l", CSISequence::SetVT52);
-tag_parser!(set_col80, "[?3l", CSISequence::SetCol80);
-tag_parser!(set_jump_scroll, "[?4l", CSISequence::SetJumpScrolling);
-tag_parser!(set_normal_video, "[?5l", CSISequence::SetNormalVideo);
-tag_parser!(set_origin_abs, "[?6l", CSISequence::SetOriginAbsolute);
-tag_parser!(reset_auto_wrap, "[?7l", CSISequence::ResetAutoWrap);
-tag_parser!(reset_auto_repeat, "[?8l", CSISequence::ResetAutoRepeat);
-tag_parser!(reset_interlacing, "[?9l", CSISequence::ResetInterlacing);
+tag_parser!(cursor_save, "s", CSISequence::CursorSave);
+tag_parser!(cursor_restore, "u", CSISequence::CursorRestore);
+tag_parser!(erase_line, "K", CSISequence::EraseLine);
+tag_parser!(hide_cursor, "?25l", CSISequence::HideCursor);
+tag_parser!(show_cursor, "?25h", CSISequence::ShowCursor);
+tag_parser!(cursor_to_app, "?1h", CSISequence::CursorToApp);
+tag_parser!(set_new_line_mode, "20h", CSISequence::SetNewLineMode);
+tag_parser!(set_col_132, "?3h", CSISequence::SetCol132);
+tag_parser!(set_smooth_scroll, "?4h", CSISequence::SetSmoothScroll);
+tag_parser!(set_reverse_video, "?5h", CSISequence::SetReverseVideo);
+tag_parser!(set_origin_rel, "?6h", CSISequence::SetOriginRelative);
+tag_parser!(set_auto_wrap, "?7h", CSISequence::SetAutoWrap);
+tag_parser!(set_auto_repeat, "?8h", CSISequence::SetAutoRepeat);
+tag_parser!(set_interlacing, "?9h", CSISequence::SetInterlacing);
+tag_parser!(set_linefeed, "20l", CSISequence::SetLineFeedMode);
+tag_parser!(set_cursorkey, "?1l", CSISequence::SetCursorKeyToCursor);
+tag_parser!(set_vt52, "?2l", CSISequence::SetVT52);
+tag_parser!(set_col80, "?3l", CSISequence::SetCol80);
+tag_parser!(set_jump_scroll, "?4l", CSISequence::SetJumpScrolling);
+tag_parser!(set_normal_video, "?5l", CSISequence::SetNormalVideo);
+tag_parser!(set_origin_abs, "?6l", CSISequence::SetOriginAbsolute);
+tag_parser!(reset_auto_wrap, "?7l", CSISequence::ResetAutoWrap);
+tag_parser!(reset_auto_repeat, "?8l", CSISequence::ResetAutoRepeat);
+tag_parser!(reset_interlacing, "?9l", CSISequence::ResetInterlacing);
 tag_parser!(
     enable_motion_mouse_tracking,
-    "[?1002h",
+    "?1002h",
     CSISequence::EnableMotionMouseTracking
 );
 tag_parser!(
     disable_motion_mouse_tracking,
-    "[?1002l",
+    "?1002l",
     CSISequence::DisableMotionMouseTracking
 );
-tag_parser!(enable_focus_mode, "[?1004h", CSISequence::EnableFocusMode);
-tag_parser!(disable_focus_mode, "[?1004l", CSISequence::DisableFocusMode);
-tag_parser!(enable_sgr_mouse_mode, "[?1006h", CSISequence::EnableSGRMouseMode);
-tag_parser!(disable_sgr_mouse_mode, "[?1006l", CSISequence::DisableSGRMouseMode);
-tag_parser!(set_alternate_buffer, "[?1049h", CSISequence::ShowAlternateBuffer);
-tag_parser!(set_normal_buffer, "[?1049l", CSISequence::ShowNormalBuffer);
+tag_parser!(enable_focus_mode, "?1004h", CSISequence::EnableFocusMode);
+tag_parser!(disable_focus_mode, "?1004l", CSISequence::DisableFocusMode);
+tag_parser!(enable_sgr_mouse_mode, "?1006h", CSISequence::EnableSGRMouseMode);
+tag_parser!(disable_sgr_mouse_mode, "?1006l", CSISequence::DisableSGRMouseMode);
+tag_parser!(set_alternate_buffer, "?1049h", CSISequence::ShowAlternateBuffer);
+tag_parser!(set_normal_buffer, "?1049l", CSISequence::ShowNormalBuffer);
 tag_parser!(
     enable_bracketed_paste_mode,
-    "[?2004h",
+    "?2004h",
     CSISequence::EnableBracketedPasteMode
 );
 tag_parser!(
     disable_bracketed_paste_mode,
-    "[?2004l",
+    "?2004l",
     CSISequence::DisableBracketedPasteMode
 );
 
@@ -216,7 +206,6 @@ fn combined<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>
     // So we simply nest them.
     alt((
         alt((
-            escape,
             cursor_pos,
             cursor_up,
             cursor_down,
@@ -273,7 +262,7 @@ fn combined<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>
 }
 
 pub fn parse_csi_sequence<'s>(input: &mut &'s str) -> PResult<AnsiSequence, InputError<&'s str>> {
-    preceded("\u{1b}", combined)
+    preceded("\u{1b}[", combined)
         .map(|a| AnsiSequence::CSI(a))
         .parse_next(input)
 }
@@ -415,18 +404,6 @@ mod tests {
         );
         assert_eq!(strings[3], Output::TextBlock("\x1b[7asd;1234H"));
         assert_eq!(strings[4], Output::TextBlock("\x1b[a;sd7H"));
-    }
-
-    #[test]
-    fn test_escape() {
-        let parts: Vec<_> = "\x1b\x1b[33mFoobar".ansi_parse().collect();
-        assert_eq!(
-            parts,
-            vec![
-                Output::AnsiSequence(AnsiSequence::CSI(CSISequence::Escape)),
-                Output::TextBlock("[33mFoobar")
-            ]
-        );
     }
 
     #[test]

@@ -13,6 +13,7 @@ macro_rules! tag_parser {
     };
 }
 
+tag_parser!(escape, "\u{1b}", ESCSequence::Escape);
 tag_parser!(set_alternate_keypad, "=", ESCSequence::SetAlternateKeypad);
 tag_parser!(set_numeric_keypad, ">", ESCSequence::SetNumericKeypad);
 tag_parser!(set_single_shift2, "N", ESCSequence::SetSingleShift2);
@@ -30,6 +31,7 @@ tag_parser!(set_g1_graph, ")2", ESCSequence::SetG1AltAndSpecialGraph);
 
 fn combined<'s>(input: &mut &'s str) -> PResult<ESCSequence, InputError<&'s str>> {
     alt((
+        escape,
         set_alternate_keypad,
         set_numeric_keypad,
         set_single_shift2,
@@ -56,7 +58,7 @@ pub fn parse_esc_sequence<'s>(input: &mut &'s str) -> PResult<AnsiSequence, Inpu
 
 #[cfg(test)]
 mod tests {
-    use crate::ansi_parser::parser::parse_sequence;
+    use crate::ansi_parser::{parser::parse_sequence, AnsiParser, AnsiSequence, ESCSequence, Output};
     use std::fmt::Write;
 
     macro_rules! test_parser {
@@ -95,6 +97,18 @@ mod tests {
                 assert_eq!(ret, ret2);
             }
         };
+    }
+
+    #[test]
+    fn test_escape() {
+        let parts: Vec<_> = "\x1b\x1b[33mFoobar".ansi_parse().collect();
+        assert_eq!(
+            parts,
+            vec![
+                Output::AnsiSequence(AnsiSequence::ESC(ESCSequence::Escape)),
+                Output::TextBlock("[33mFoobar")
+            ]
+        );
     }
 
     test_parser!(set_single_shift2, "\u{1b}N");
