@@ -15,7 +15,3 @@ Written in Rust, with [iced](https://iced.rs).
 - [ANSI escape code (Wikipedia)](https://en.wikipedia.org/wiki/ANSI_escape_code)
 - [ANSI Escape Codes (gist)](https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797)
 - [XTerm Control Sequences](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html)
-
-### TODO
-
-- Research [winnow](https://crates.io/crates/winnow) as an alternative to nom
