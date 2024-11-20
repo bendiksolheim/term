@@ -59,6 +59,18 @@ fn cursor_backward<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&
         .parse_next(input)
 }
 
+fn line_position_absolute<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
+    terminated(parse_def_cursor_int, "d")
+        .map(|n| CSISequence::LinePositionAbsolute(n))
+        .parse_next(input)
+}
+
+fn cursor_character_absolute<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
+    terminated(parse_def_cursor_int, "G")
+        .map(|n| CSISequence::CursorCharacterAbsolute(n))
+        .parse_next(input)
+}
+
 fn cursor_style<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
     (parse_u8, " ", "q")
         .map(|(style, _, _)| CSISequence::CursorStyle(style))
@@ -149,9 +161,14 @@ fn erase_characters<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<
         .parse_next(input)
 }
 
+fn erase_in_line<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
+    terminated(digit0.map(|s: &str| s.parse::<u32>().unwrap_or(0)), "K")
+        .map(|n| CSISequence::EraseInLine(n))
+        .parse_next(input)
+}
+
 tag_parser!(cursor_save, "s", CSISequence::CursorSave);
 tag_parser!(cursor_restore, "u", CSISequence::CursorRestore);
-tag_parser!(erase_line, "K", CSISequence::EraseLine);
 tag_parser!(hide_cursor, "?25l", CSISequence::HideCursor);
 tag_parser!(show_cursor, "?25h", CSISequence::ShowCursor);
 tag_parser!(cursor_to_app, "?1h", CSISequence::CursorToApp);
@@ -211,11 +228,13 @@ fn combined<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>
             cursor_down,
             cursor_forward,
             cursor_backward,
+            line_position_absolute,
+            cursor_character_absolute,
             cursor_style,
             cursor_save,
             cursor_restore,
             erase_display,
-            erase_line,
+            erase_in_line,
             erase_characters,
             graphics_mode,
             set_mode,
@@ -224,10 +243,10 @@ fn combined<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>
             show_cursor,
             cursor_to_app,
             set_new_line_mode,
-            set_col_132,
-            set_smooth_scroll,
         )),
         alt((
+            set_col_132,
+            set_smooth_scroll,
             set_reverse_video,
             set_origin_rel,
             set_auto_wrap,
@@ -246,10 +265,10 @@ fn combined<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>
             enable_motion_mouse_tracking,
             disable_motion_mouse_tracking,
             enable_focus_mode,
-            disable_focus_mode,
-            enable_sgr_mouse_mode,
         )),
         alt((
+            disable_focus_mode,
+            enable_sgr_mouse_mode,
             disable_sgr_mouse_mode,
             enable_bracketed_paste_mode,
             disable_bracketed_paste_mode,
@@ -326,7 +345,8 @@ mod tests {
     test_parser!(erase_display_a, "\u{1b}[J");
     test_parser!(erase_display_b, "\u{1b}[1J");
     test_parser!(erase_display_c, "\u{1b}[2J");
-    test_parser!(erase_line, "\u{1b}[K");
+    test_parser!(erase_line_a, "\u{1b}[K");
+    test_parser!(erase_line_b, "\u{1b}[2K");
     test_parser!(erase_characters, "\u{1b}[43X");
 
     test_parser!(set_video_mode_a, "\u{1b}[4m");

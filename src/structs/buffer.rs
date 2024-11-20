@@ -43,8 +43,16 @@ impl<T: Clone + Default> Buffer<T> {
 
     pub fn clear_selection(&mut self, selection: Selection) {
         match selection {
-            Selection::Line => todo!(),
-            Selection::FromStartOfLine => todo!(),
+            Selection::Line => {
+                let from = self.cursor.row * self.cols;
+                let to = (self.cursor.row + 1) * self.cols;
+                self[from..to].fill(T::default());
+            }
+            Selection::FromStartOfLine => {
+                let from = self.cursor.row * self.cols;
+                let to = self.cursor.row * self.cols + self.cursor.col;
+                self[from..to].fill(T::default());
+            }
             Selection::ToEndOfLine => {
                 let from = self.cursor.row * self.cols + self.cursor.col;
                 let to = (self.cursor.row + 1) * self.cols;

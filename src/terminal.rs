@@ -157,6 +157,14 @@ impl Terminal {
                             self.buffer_mut().cursor.left(usize::try_from(n).unwrap());
                         }
 
+                        CSISequence::LinePositionAbsolute(n) => {
+                            self.buffer_mut().cursor.row = n as usize - 1;
+                        }
+
+                        CSISequence::CursorCharacterAbsolute(n) => {
+                            self.buffer_mut().cursor.col = n as usize - 1;
+                        }
+
                         CSISequence::CursorSave => {
                             self.buffer_mut().save_cursor();
                         }
@@ -169,8 +177,14 @@ impl Terminal {
                             self.buffer_mut().clear_selection(Selection::ToEndOfDisplay);
                         }
 
-                        CSISequence::EraseLine => {
-                            self.buffer_mut().clear_selection(Selection::ToEndOfLine);
+                        CSISequence::EraseInLine(n) => {
+                            let selection = match n {
+                                0 => Selection::ToEndOfLine,
+                                1 => Selection::FromStartOfLine,
+                                2 => Selection::Line,
+                                _ => unreachable!(),
+                            };
+                            self.buffer_mut().clear_selection(selection);
                         }
 
                         CSISequence::EraseCharacters(n) => {
