@@ -137,7 +137,7 @@ impl<T: Clone + Default + Copy> Buffer<T> {
 }
 
 impl Buffer<Cell> {
-    pub fn set(&mut self, c: char, cell_style: CellStyle) {
+    pub fn write(&mut self, c: char, cell_style: CellStyle) {
         if let Some(cell) = self.get(self.cursor) {
             cell.content = c;
             cell.style = cell_style;

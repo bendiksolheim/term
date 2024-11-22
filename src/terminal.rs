@@ -112,7 +112,7 @@ impl Terminal {
             match block {
                 ansi_parser::Output::TextBlock(text) => text.chars().for_each(|c| {
                     let current_cell_style = self.current_cell_style.clone();
-                    self.buffer_mut().set(c, current_cell_style);
+                    self.buffer_mut().write(c, current_cell_style);
                 }),
 
                 ansi_parser::Output::AnsiSequence(code) => match code {
