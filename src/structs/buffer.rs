@@ -8,17 +8,21 @@ pub struct Buffer<T> {
     pub rows: usize,
     pub cols: usize,
     data: Vec<T>,
+    top: usize,
+    bottom: usize,
     pub cursor: Cursor,
     saved_cursor: Option<Cursor>,
 }
 
-impl<T: Clone + Default> Buffer<T> {
+impl<T: Clone + Default + Copy> Buffer<T> {
     pub fn new(rows: usize, cols: usize, data: Vec<T>) -> Self {
         assert_eq!(rows * cols, data.len());
         Self {
             rows,
             cols,
             data,
+            top: 0,
+            bottom: rows - 1,
             cursor: Cursor::default(),
             saved_cursor: None,
         }
@@ -36,9 +40,10 @@ impl<T: Clone + Default> Buffer<T> {
 
     // Removes first row and appends empty row last, in effect moving all lines up one row
     pub fn shift_row(&mut self) {
-        let len = self.data.len();
-        self.data.rotate_left(self.cols);
-        self.data[len - self.cols..].fill(T::default());
+        let from = (self.top + 1) * self.cols;
+        let to = (self.bottom + 1) * self.cols;
+        self.data.copy_within(from..to, from - 1);
+        self.data[(to - self.cols)..to].fill(T::default());
     }
 
     pub fn clear_selection(&mut self, selection: Selection) {
@@ -123,6 +128,11 @@ impl<T: Clone + Default> Buffer<T> {
             self.cursor = cursor;
             self.saved_cursor = None;
         }
+    }
+
+    pub fn set_top_bottom(&mut self, top: usize, bottom: usize) {
+        self.top = top;
+        self.bottom = bottom;
     }
 }
 

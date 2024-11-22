@@ -249,6 +249,10 @@ impl Terminal {
                             self.buffer_mut().cursor.set_style(style);
                         }
 
+                        CSISequence::SetTopAndBottom(top, bottom) => {
+                            self.buffer_mut().set_top_bottom(top as usize, bottom as usize);
+                        }
+
                         _ => {
                             println!("Unknown CSI code: {:?}", csi);
                         }

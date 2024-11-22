@@ -117,7 +117,10 @@ impl Display for CSISequence {
                 2 => write!(formatter, "2J"),
                 _ => unreachable!(),
             },
-            EraseInLine(n) => write!(formatter, "{}K", n),
+            EraseInLine(n) => match n {
+                0 => write!(formatter, "K"),
+                _ => write!(formatter, "{}K", n),
+            },
             EraseCharacters(n) => write!(formatter, "{}X", n),
             SetGraphicsMode(vec) => match vec.len() {
                 0 => write!(formatter, "m"),

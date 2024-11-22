@@ -1,6 +1,6 @@
 use crate::term::{colors::TerminalColor, graphics::Graphics};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct Cell {
     pub content: char,
     pub style: CellStyle,
@@ -15,7 +15,7 @@ impl Default for Cell {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct CellStyle {
     pub foreground: TerminalColor,
     pub background: TerminalColor,
@@ -26,7 +26,7 @@ pub struct CellStyle {
     pub strikethrough: bool,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum FontWeight {
     Dim,
     Normal,
