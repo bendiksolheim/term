@@ -23,6 +23,7 @@ pub struct Terminal {
     application_mode: bool, // Changes how cursor keys are coded
     newline_mode: bool,     // Interprets \n as NL LF instead of just NL
     focus_mode: bool,       // When enabled, sends \e[I on focus and \e[O on defocus
+    auto_wrap_mode: bool,   // Automatically wraps to next line when cursor is at end of line
     size: TerminalSize,
     cursor_visible: bool,
     buffer: Buffer<Cell>,
@@ -40,6 +41,7 @@ impl Terminal {
             application_mode: false,
             newline_mode: false,
             focus_mode: false,
+            auto_wrap_mode: false,
             size,
             cursor_visible: true,
             buffer: Buffer::new(rows, cols, vec![Cell::default(); rows * cols]),
@@ -112,7 +114,9 @@ impl Terminal {
             match block {
                 ansi_parser::Output::TextBlock(text) => text.chars().for_each(|c| {
                     let current_cell_style = self.current_cell_style.clone();
+                    let auto_wrap_mode = self.auto_wrap_mode;
                     self.buffer_mut().write(c, current_cell_style);
+                    self.buffer_mut().advance_cursor(auto_wrap_mode);
                 }),
 
                 ansi_parser::Output::AnsiSequence(code) => match code {
@@ -251,6 +255,14 @@ impl Terminal {
 
                         CSISequence::SetTopAndBottom(top, bottom) => {
                             self.buffer_mut().set_top_bottom(top as usize, bottom as usize);
+                        }
+
+                        CSISequence::SetAutoWrap => {
+                            self.auto_wrap_mode = true;
+                        }
+
+                        CSISequence::ResetAutoWrap => {
+                            self.auto_wrap_mode = false;
                         }
 
                         _ => {

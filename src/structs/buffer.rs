@@ -134,6 +134,16 @@ impl<T: Clone + Default + Copy> Buffer<T> {
         self.top = top;
         self.bottom = bottom;
     }
+
+    pub fn advance_cursor(&mut self, wrap_on_end: bool) {
+        let cursor_at_end = self.cursor.col == (self.cols - 1);
+        if cursor_at_end && wrap_on_end {
+            self.cursor.down(1);
+            self.cursor.col = 0;
+        } else if !cursor_at_end {
+            self.cursor.right(1);
+        }
+    }
 }
 
 impl Buffer<Cell> {
@@ -141,7 +151,6 @@ impl Buffer<Cell> {
         if let Some(cell) = self.get(self.cursor) {
             cell.content = c;
             cell.style = cell_style;
-            self.cursor.right(1)
         } else {
             println!("Warning: tried printing outside grid");
         }
