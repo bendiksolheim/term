@@ -1,4 +1,7 @@
-use crate::ansi_parser::{self, AnsiParser, CSISequence, ESCSequence};
+use crate::{
+    ansi_parser::{self, AnsiParser, CSISequence, ESCSequence},
+    structs::cursor::Direction,
+};
 use iced::{
     futures::{channel::mpsc, SinkExt},
     Task,
@@ -41,7 +44,7 @@ impl Terminal {
             application_mode: false,
             newline_mode: false,
             focus_mode: false,
-            auto_wrap_mode: false,
+            auto_wrap_mode: true,
             size,
             cursor_visible: true,
             buffer: Buffer::new(rows, cols, vec![Cell::default(); rows * cols]),
@@ -146,19 +149,19 @@ impl Terminal {
                         }
 
                         CSISequence::CursorUp(n) => {
-                            self.buffer_mut().cursor.up(n.try_into().unwrap());
+                            self.buffer_mut().move_cursor(Direction::Up(n.try_into().unwrap()));
                         }
 
                         CSISequence::CursorDown(n) => {
-                            self.buffer_mut().cursor.down(n.try_into().unwrap());
+                            self.buffer_mut().move_cursor(Direction::Down(n.try_into().unwrap()));
                         }
 
                         CSISequence::CursorForward(n) => {
-                            self.buffer_mut().cursor.right(usize::try_from(n).unwrap());
+                            self.buffer_mut().move_cursor(Direction::Right(n.try_into().unwrap()));
                         }
 
                         CSISequence::CursorBackward(n) => {
-                            self.buffer_mut().cursor.left(usize::try_from(n).unwrap());
+                            self.buffer_mut().move_cursor(Direction::Left(n.try_into().unwrap()));
                         }
 
                         CSISequence::LinePositionAbsolute(n) => {

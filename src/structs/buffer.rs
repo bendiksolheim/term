@@ -1,7 +1,10 @@
 use crate::structs::cursor::Cursor;
 use std::ops::{Index, IndexMut};
 
-use super::cell::{Cell, CellStyle};
+use super::{
+    cell::{Cell, CellStyle},
+    cursor::Direction,
+};
 
 #[derive(Debug, Clone)]
 pub struct Buffer<T> {
@@ -90,11 +93,11 @@ impl<T: Clone + Default + Copy> Buffer<T> {
         }
 
         if self.cursor.col >= self.cols {
-            self.cursor.up(self.cursor.col - self.cols);
+            self.cursor.up(self.cursor.col - self.cols, self.rows);
         }
 
         if self.cursor.row >= self.rows {
-            self.cursor.left(self.cursor.row - self.rows);
+            self.cursor.left(self.cursor.row - self.rows, self.cols);
         }
     }
 
@@ -102,7 +105,7 @@ impl<T: Clone + Default + Copy> Buffer<T> {
         if self.cursor.row == self.rows - 1 {
             self.shift_row();
         } else {
-            self.cursor.down(1);
+            self.cursor.down(1, self.rows);
         }
 
         // If terminal is in newline mode, cursor is also moved to start of line
@@ -116,7 +119,7 @@ impl<T: Clone + Default + Copy> Buffer<T> {
     }
 
     pub fn backspace(&mut self) {
-        self.cursor.left(1);
+        self.cursor.left(1, self.cols);
     }
 
     pub fn save_cursor(&mut self) {
@@ -136,12 +139,21 @@ impl<T: Clone + Default + Copy> Buffer<T> {
     }
 
     pub fn advance_cursor(&mut self, wrap_on_end: bool) {
-        let cursor_at_end = self.cursor.col == (self.cols - 1);
+        let cursor_at_end = self.cursor.col == (self.cols);
         if cursor_at_end && wrap_on_end {
-            self.cursor.down(1);
+            self.cursor.down(1, self.rows);
             self.cursor.col = 0;
         } else if !cursor_at_end {
-            self.cursor.right(1);
+            self.cursor.right(1, self.cols);
+        }
+    }
+
+    pub fn move_cursor(&mut self, direction: Direction) {
+        match direction {
+            Direction::Up(n) => self.cursor.up(n, self.rows - 1),
+            Direction::Down(n) => self.cursor.down(n, self.rows - 1),
+            Direction::Left(n) => self.cursor.left(n, self.cols - 1),
+            Direction::Right(n) => self.cursor.right(n, self.cols - 1),
         }
     }
 }
@@ -263,9 +275,11 @@ mod tests {
         grid.resize(2, 1);
         assert_eq!(grid.data, vec![1, 1]);
     }
-}
 
-/*
-1 1
-0 0
-*/
+    #[test]
+    fn moving_cursor_outside_buffer_should_not_crash() {
+        let mut grid = Buffer::new(2, 2, vec![1; 2 * 2]);
+        grid.move_cursor(Direction::Left(5));
+        assert_eq!(grid.cursor, Cursor::default());
+    }
+}
