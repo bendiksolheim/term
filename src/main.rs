@@ -9,8 +9,7 @@ mod window;
 
 use crate::config::Config;
 use application::Application;
-use iced::{window::Id, Size};
-use term::colors::TerminalColor;
+use iced::{window::Id, Color, Size};
 use window::WindowFocus;
 
 fn main() -> iced::Result {
@@ -18,8 +17,8 @@ fn main() -> iced::Result {
     let config = Config::new();
     iced::daemon("Terminal", Application::update, Application::view)
         .style(|_state, _theme| iced::daemon::Appearance {
-            background_color: TerminalColor::Black.background_color(),
-            text_color: TerminalColor::White.foreground_color(),
+            background_color: Color::from_rgb(0.11764706, 0.11764706, 0.17647059),
+            text_color: Color::from_rgb(0.0, 0.0, 0.0),
         })
         .settings(settings)
         .subscription(Application::subscription)
