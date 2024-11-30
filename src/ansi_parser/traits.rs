@@ -43,12 +43,14 @@ impl<'a> Iterator for AnsiParseIterator<'a> {
                     if let Some(loc) = pos {
                         //Added to because it's based one character ahead
                         let loc = loc + 1;
+                        println!("Possible undetected escape code in sequence: {:?}", [..loc]);
 
                         let temp = &self.dat[..loc];
                         self.dat = &self.dat[loc..];
 
                         Some(Output::TextBlock(temp))
                     } else {
+                        println!("Possible undetected escape code in sequence: {:?}", self.dat);
                         let temp = self.dat;
                         self.dat = "";
 
