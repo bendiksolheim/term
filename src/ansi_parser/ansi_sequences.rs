@@ -82,6 +82,7 @@ pub enum ESCSequence {
     SetG1AlternateChar,
     SetG0AltAndSpecialGraph,
     SetG1AltAndSpecialGraph,
+    ReverseIndex,
 }
 
 impl Display for AnsiSequence {
@@ -200,6 +201,7 @@ impl Display for ESCSequence {
             SetG1AlternateChar => write!(formatter, ")1"),
             SetG0AltAndSpecialGraph => write!(formatter, "(2"),
             SetG1AltAndSpecialGraph => write!(formatter, ")2"),
+            ReverseIndex => write!(formatter, "M"),
         }
     }
 }

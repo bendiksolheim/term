@@ -135,6 +135,10 @@ impl Terminal {
                             // Don’t do anything, we assume US ASCII is active
                         }
 
+                        ESCSequence::ReverseIndex => {
+                            self.buffer_mut().unshift_row();
+                        }
+
                         _ => {
                             println!("Unknown ESC code: {:?}", esc);
                         }

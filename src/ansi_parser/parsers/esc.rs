@@ -28,6 +28,7 @@ tag_parser!(set_g0_alternate, "(1", ESCSequence::SetG0AlternateChar);
 tag_parser!(set_g1_alternate, ")1", ESCSequence::SetG1AlternateChar);
 tag_parser!(set_g0_graph, "(2", ESCSequence::SetG0AltAndSpecialGraph);
 tag_parser!(set_g1_graph, ")2", ESCSequence::SetG1AltAndSpecialGraph);
+tag_parser!(reverse_index, "M", ESCSequence::ReverseIndex);
 
 fn combined<'s>(input: &mut &'s str) -> PResult<ESCSequence, InputError<&'s str>> {
     alt((
@@ -46,6 +47,7 @@ fn combined<'s>(input: &mut &'s str) -> PResult<ESCSequence, InputError<&'s str>
         set_g1_alternate,
         set_g0_graph,
         set_g1_graph,
+        reverse_index,
     ))
     .parse_next(input)
 }

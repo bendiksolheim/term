@@ -41,12 +41,24 @@ impl<T: Clone + Default + Copy> Buffer<T> {
         self.data.chunks(self.cols)
     }
 
-    // Removes first row and appends empty row last, in effect moving all lines up one row
+    // Appends empty row last and removes first row inside scroll area
     pub fn shift_row(&mut self) {
-        let from = (self.top + 1) * self.cols;
+        let from = self.top * self.cols;
         let to = (self.bottom + 1) * self.cols;
-        self.data.copy_within(from..to, from - 1);
+        self.data.copy_within(from + self.cols..to, from);
         self.data[(to - self.cols)..to].fill(T::default());
+    }
+
+    // Prepends empty row first and removes last row inside scroll area
+    pub fn unshift_row(&mut self) {
+        if self.cursor.row == self.top {
+            let from = self.top * self.cols; // 0
+            let to = self.bottom * self.cols; // 8
+            self.data.copy_within(from..to, from + self.cols);
+            self.data[from..(from + self.cols)].fill(T::default());
+        } else {
+            self.cursor.up(1, self.rows - 1);
+        }
     }
 
     pub fn clear_selection(&mut self, selection: Selection) {
@@ -281,5 +293,12 @@ mod tests {
         let mut grid = Buffer::new(2, 2, vec![1; 2 * 2]);
         grid.move_cursor(Direction::Left(5));
         assert_eq!(grid.cursor, Cursor::default());
+    }
+
+    #[test]
+    fn scrolling_one_line_down_should_work() {
+        let mut grid = Buffer::new(3, 2, vec![1, 2, 3, 4, 5, 6]);
+        grid.shift_row();
+        assert_eq!(grid.data, vec![3, 4, 5, 6, 0, 0]);
     }
 }
