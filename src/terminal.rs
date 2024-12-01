@@ -140,7 +140,7 @@ impl Terminal {
                         }
 
                         _ => {
-                            println!("Unknown ESC code: {:?}", esc);
+                            println!("Unimplemented ESC code: {:?}", esc);
                         }
                     },
 
@@ -273,7 +273,7 @@ impl Terminal {
                         }
 
                         _ => {
-                            println!("Unknown CSI code: {:?}", csi);
+                            println!("Unimplemented CSI code: {:?}", csi);
                         }
                     },
                 },
