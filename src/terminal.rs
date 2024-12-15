@@ -206,21 +206,28 @@ impl Terminal {
                             self.current_cell_style.modify(&styles);
                         }
 
-                        CSISequence::HideCursor => {
-                            self.cursor_visible = false;
-                        }
+                        CSISequence::DecPrivateModeSet(n) => match n {
+                            1 => self.application_mode = true,
+                            7 => self.auto_wrap_mode = true,
+                            25 => self.cursor_visible = false,
+                            1004 => self.focus_mode = true,
+                            1049 => {
+                                let rows = self.buffer().rows;
+                                let cols = self.buffer().cols;
+                                self.alternate_buffer =
+                                    Some(Buffer::new(rows, cols, vec![Cell::default(); rows * cols]))
+                            }
+                            n => println!("Unimplemented DecPrivateModeSet value {}", n),
+                        },
 
-                        CSISequence::ShowCursor => {
-                            self.cursor_visible = true;
-                        }
-
-                        CSISequence::CursorToApp => {
-                            self.application_mode = true;
-                        }
-
-                        CSISequence::SetCursorKeyToCursor => {
-                            self.application_mode = false;
-                        }
+                        CSISequence::DecPrivateModeReset(n) => match n {
+                            1 => self.application_mode = false,
+                            7 => self.auto_wrap_mode = false,
+                            25 => self.cursor_visible = true,
+                            1004 => self.focus_mode = false,
+                            1049 => self.alternate_buffer = None,
+                            n => println!("Unimplemented DecPrivateModeReset value {}", n),
+                        },
 
                         CSISequence::SetNewLineMode => {
                             self.newline_mode = true;
@@ -230,46 +237,12 @@ impl Terminal {
                             self.newline_mode = false;
                         }
 
-                        CSISequence::EnableBracketedPasteMode => {
-                            // TODO: Must be implemented before pasting
-                        }
-
-                        CSISequence::DisableBracketedPasteMode => {
-                            // TODO: Must be implemented before pasting
-                        }
-
-                        CSISequence::ShowAlternateBuffer => {
-                            let rows = self.buffer().rows;
-                            let cols = self.buffer().cols;
-                            self.alternate_buffer = Some(Buffer::new(rows, cols, vec![Cell::default(); rows * cols]))
-                        }
-
-                        CSISequence::ShowNormalBuffer => {
-                            self.alternate_buffer = None;
-                        }
-
-                        CSISequence::EnableFocusMode => {
-                            self.focus_mode = true;
-                        }
-
-                        CSISequence::DisableFocusMode => {
-                            self.focus_mode = false;
-                        }
-
                         CSISequence::CursorStyle(style) => {
                             self.buffer_mut().cursor.set_style(style);
                         }
 
                         CSISequence::SetTopAndBottom(top, bottom) => {
                             self.buffer_mut().set_top_bottom(top as usize, bottom as usize);
-                        }
-
-                        CSISequence::SetAutoWrap => {
-                            self.auto_wrap_mode = true;
-                        }
-
-                        CSISequence::ResetAutoWrap => {
-                            self.auto_wrap_mode = false;
                         }
 
                         _ => {

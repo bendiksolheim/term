@@ -167,115 +167,49 @@ fn erase_in_line<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s
         .parse_next(input)
 }
 
+fn dec_private_mode_set<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
+    delimited("?", parse_u32, "h")
+        .map(|n| CSISequence::DecPrivateModeSet(n))
+        .parse_next(input)
+}
+
+fn dec_private_mode_reset<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
+    delimited("?", parse_u32, "l")
+        .map(|n| CSISequence::DecPrivateModeReset(n))
+        .parse_next(input)
+}
+
 tag_parser!(cursor_save, "s", CSISequence::CursorSave);
 tag_parser!(cursor_restore, "u", CSISequence::CursorRestore);
-tag_parser!(hide_cursor, "?25l", CSISequence::HideCursor);
-tag_parser!(show_cursor, "?25h", CSISequence::ShowCursor);
-tag_parser!(cursor_to_app, "?1h", CSISequence::CursorToApp);
 tag_parser!(set_new_line_mode, "20h", CSISequence::SetNewLineMode);
-tag_parser!(set_col_132, "?3h", CSISequence::SetCol132);
-tag_parser!(set_smooth_scroll, "?4h", CSISequence::SetSmoothScroll);
-tag_parser!(set_reverse_video, "?5h", CSISequence::SetReverseVideo);
-tag_parser!(set_origin_rel, "?6h", CSISequence::SetOriginRelative);
-tag_parser!(set_auto_wrap, "?7h", CSISequence::SetAutoWrap);
-tag_parser!(set_auto_repeat, "?8h", CSISequence::SetAutoRepeat);
-tag_parser!(set_interlacing, "?9h", CSISequence::SetInterlacing);
 tag_parser!(set_linefeed, "20l", CSISequence::SetLineFeedMode);
-tag_parser!(set_cursorkey, "?1l", CSISequence::SetCursorKeyToCursor);
-tag_parser!(set_vt52, "?2l", CSISequence::SetVT52);
-tag_parser!(set_col80, "?3l", CSISequence::SetCol80);
-tag_parser!(set_jump_scroll, "?4l", CSISequence::SetJumpScrolling);
-tag_parser!(set_normal_video, "?5l", CSISequence::SetNormalVideo);
-tag_parser!(set_origin_abs, "?6l", CSISequence::SetOriginAbsolute);
-tag_parser!(reset_auto_wrap, "?7l", CSISequence::ResetAutoWrap);
-tag_parser!(reset_auto_repeat, "?8l", CSISequence::ResetAutoRepeat);
-tag_parser!(reset_interlacing, "?9l", CSISequence::ResetInterlacing);
-tag_parser!(
-    enable_motion_mouse_tracking,
-    "?1002h",
-    CSISequence::EnableMotionMouseTracking
-);
-tag_parser!(
-    disable_motion_mouse_tracking,
-    "?1002l",
-    CSISequence::DisableMotionMouseTracking
-);
-tag_parser!(enable_focus_mode, "?1004h", CSISequence::EnableFocusMode);
-tag_parser!(disable_focus_mode, "?1004l", CSISequence::DisableFocusMode);
-tag_parser!(enable_sgr_mouse_mode, "?1006h", CSISequence::EnableSGRMouseMode);
-tag_parser!(disable_sgr_mouse_mode, "?1006l", CSISequence::DisableSGRMouseMode);
-tag_parser!(set_alternate_buffer, "?1049h", CSISequence::ShowAlternateBuffer);
-tag_parser!(set_normal_buffer, "?1049l", CSISequence::ShowNormalBuffer);
-tag_parser!(
-    enable_bracketed_paste_mode,
-    "?2004h",
-    CSISequence::EnableBracketedPasteMode
-);
-tag_parser!(
-    disable_bracketed_paste_mode,
-    "?2004l",
-    CSISequence::DisableBracketedPasteMode
-);
 
 fn combined<'s>(input: &mut &'s str) -> PResult<CSISequence, InputError<&'s str>> {
     // `alt` only supports up to 21 parsers, and winnow doesn't seem to
     // have an alternative with higher variability.
     // So we simply nest them.
     alt((
-        alt((
-            cursor_pos,
-            cursor_up,
-            cursor_down,
-            cursor_forward,
-            cursor_backward,
-            line_position_absolute,
-            cursor_character_absolute,
-            cursor_style,
-            cursor_save,
-            cursor_restore,
-            erase_display,
-            erase_in_line,
-            erase_characters,
-            graphics_mode,
-            set_mode,
-            reset_mode,
-            hide_cursor,
-            show_cursor,
-            cursor_to_app,
-            set_new_line_mode,
-        )),
-        alt((
-            set_col_132,
-            set_smooth_scroll,
-            set_reverse_video,
-            set_origin_rel,
-            set_auto_wrap,
-            set_auto_repeat,
-            set_interlacing,
-            set_linefeed,
-            set_cursorkey,
-            set_vt52,
-            set_col80,
-            set_jump_scroll,
-            set_normal_video,
-            set_origin_abs,
-            reset_auto_wrap,
-            reset_auto_repeat,
-            reset_interlacing,
-            enable_motion_mouse_tracking,
-            disable_motion_mouse_tracking,
-            enable_focus_mode,
-        )),
-        alt((
-            disable_focus_mode,
-            enable_sgr_mouse_mode,
-            disable_sgr_mouse_mode,
-            enable_bracketed_paste_mode,
-            disable_bracketed_paste_mode,
-            set_alternate_buffer,
-            set_normal_buffer,
-            set_top_and_bottom,
-        )),
+        cursor_pos,
+        cursor_up,
+        cursor_down,
+        cursor_forward,
+        cursor_backward,
+        line_position_absolute,
+        cursor_character_absolute,
+        cursor_style,
+        cursor_save,
+        cursor_restore,
+        erase_display,
+        erase_in_line,
+        erase_characters,
+        graphics_mode,
+        set_mode,
+        reset_mode,
+        set_new_line_mode,
+        set_linefeed,
+        set_top_and_bottom,
+        dec_private_mode_set,
+        dec_private_mode_reset,
     ))
     .parse_next(input)
 }
