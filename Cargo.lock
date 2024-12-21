@@ -3149,6 +3149,7 @@ name = "term"
 version = "0.1.0"
 dependencies = [
  "async-std",
+ "cosmic-text",
  "font-loader",
  "heapless",
  "iced",
