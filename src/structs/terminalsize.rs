@@ -7,6 +7,10 @@ pub struct TerminalSize {
 }
 
 impl TerminalSize {
+    pub fn new(cols: usize, rows: usize) -> Self {
+        Self { cols, rows }
+    }
+
     pub fn winsize(&self) -> Winsize {
         Winsize {
             ws_col: u16::try_from(self.cols).expect("Terminal is too wide for Winsize"),

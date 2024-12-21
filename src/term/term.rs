@@ -46,7 +46,7 @@ impl Term {
 
                     TermMessage::WindowResized(columns, rows) => match resize(&master, columns, rows) {
                         Ok(_) => {
-                            println!("Resize successful");
+                            // Everything OK, do nothing
                         }
                         Err(err) => {
                             println!("Error resizing: {:?}", err);
