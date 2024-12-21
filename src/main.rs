@@ -9,12 +9,14 @@ mod window;
 
 use crate::config::Config;
 use application::Application;
+use font::Font;
 use iced::{window::Id, Color, Size};
 use window::WindowFocus;
 
 fn main() -> iced::Result {
-    let settings = settings();
-    let config = Config::new();
+    let font = Font::new("Iosevka", 14.0);
+    let settings = settings(&font);
+    let config = Config::new(&font);
     iced::daemon("Terminal", Application::update, Application::view)
         .style(|_state, _theme| iced::daemon::Appearance {
             background_color: Color::from_rgb(0.11764706, 0.11764706, 0.17647059),
@@ -25,12 +27,12 @@ fn main() -> iced::Result {
         .run_with(move || Application::new(config))
 }
 
-fn settings() -> iced::Settings {
+fn settings(font: &Font) -> iced::Settings {
     iced::Settings {
         id: None,
         fonts: vec![],
-        default_font: iced::Font::with_name("Iosevka"),
-        default_text_size: 14.0.into(),
+        default_font: iced::Font::with_name(font.name),
+        default_text_size: font.size.into(),
         antialiasing: false,
     }
 }

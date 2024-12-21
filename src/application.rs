@@ -1,6 +1,6 @@
 use iced::{
     keyboard::{self, key::Named, Key},
-    widget::{container, text, Column, Row},
+    widget::{container, text, Column, Container, Row},
     window::Id,
     Element, Subscription, Task,
 };
@@ -49,6 +49,9 @@ impl Application {
                             .enumerate()
                             .map(|(x, cell)| {
                                 cell_view(&self.terminal.buffer().cursor, x, y, cell, self.config.font_size)
+                                    .width(self.config.cell_size.width)
+                                    .height(self.config.cell_size.height)
+                                    .into()
                             })
                             .collect::<Vec<_>>(),
                     )
@@ -130,7 +133,7 @@ impl Application {
     }
 }
 
-fn cell_view<'a>(cursor: &Cursor, x: usize, y: usize, cell: &Cell, font_size: f32) -> Element<'a, Message> {
+fn cell_view<'a>(cursor: &Cursor, x: usize, y: usize, cell: &Cell, font_size: f32) -> Container<'a, Message> {
     let mut container_style = container::Style {
         // TODO: Do I really need to clone here?
         text_color: Some(cell.style.clone().foreground_color().foreground_color()),
@@ -179,5 +182,7 @@ fn cell_view<'a>(cursor: &Cursor, x: usize, y: usize, cell: &Cell, font_size: f3
 
     // TODO: Handle underline, strikethrough
 
-    container(text).style(move |_| container_style).into()
+    container(text).style(move |_| {
+        container_style //.border(iced::Border::default().color(Color::from_rgb(0.0, 1.0, 0.0)).width(0.5))
+    })
 }

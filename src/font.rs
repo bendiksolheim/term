@@ -1,32 +1,34 @@
-use iced::Size;
+use iced::{widget::text::LineHeight, Size};
 
-pub struct Font;
+pub struct Font {
+    pub name: &'static str,
+    pub size: f32,
+}
 
 impl Font {
-    pub fn measure_text(font: &str, text: char, font_size: f32) -> Size {
-        use rusttype::{Font, Scale};
-        let font_data = Self::load_font(font);
-        let font = Font::try_from_bytes(&font_data).unwrap();
-
-        let scale = Scale::uniform(font_size);
-        let v_metrics = font.v_metrics(scale);
-        let height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
-
-        let glyph = font.glyph(text).scaled(scale);
-        let h_metrics = glyph.h_metrics();
-        let width = h_metrics.advance_width;
-
-        Size { width, height }
+    pub fn new(name: &'static str, size: f32) -> Self {
+        Self { name, size }
     }
 
-    fn load_font(font: &str) -> Vec<u8> {
-        use font_loader::system_fonts;
-        let property = font_loader::system_fonts::FontPropertyBuilder::new()
-            .family(font)
-            .build();
+    pub fn measure_glyph(&self, char: &str) -> Size {
+        use cosmic_text::{Attrs, Buffer, Family, FontSystem, Metrics, Shaping};
+        let line_height_scale = LineHeight::default();
+        let line_height = line_height_scale.to_absolute(self.size.into()).0;
 
-        let (font_data, _) = system_fonts::get(&property).unwrap();
+        let mut font_system = FontSystem::new();
+        let metrics = Metrics {
+            font_size: self.size,
+            line_height,
+        };
+        let mut buffer = Buffer::new_empty(/*&mut font_system, */ metrics);
+        let attrs = Attrs::new().family(Family::Name(self.name));
+        buffer.set_text(&mut font_system, char, attrs, Shaping::Advanced);
 
-        font_data
+        let width = buffer.layout_runs().fold(0.0, |width, run| run.line_w.max(width));
+
+        Size {
+            width,
+            height: buffer.metrics().line_height,
+        }
     }
 }

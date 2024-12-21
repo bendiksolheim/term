@@ -10,15 +10,9 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new() -> Self {
-        let font_size = 14.0;
-        let font_measure = Font::measure_text("Iosevka", 'M', font_size);
-        let cell_size = Size {
-            width: font_measure.width * CHARACTER_WIDTH_FACTOR,
-            height: font_measure.height * CHARACTER_HEIGHT_FACTOR,
-        };
+    pub fn new(font: &Font) -> Self {
         Self {
-            font_size,
+            font_size: font.size,
             window_config: WindowConfig {
                 size: Size {
                     width: 1024.0,
@@ -31,10 +25,7 @@ impl Config {
                     right: 5.0,
                 },
             },
-            cell_size,
+            cell_size: font.measure_glyph("M"),
         }
     }
 }
-
-static CHARACTER_WIDTH_FACTOR: f32 = 1.25; // Found by trial and error
-static CHARACTER_HEIGHT_FACTOR: f32 = 1.3; // Found by trial and error
