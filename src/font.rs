@@ -16,13 +16,12 @@ impl Font {
         let line_height = line_height_scale.to_absolute(self.size.into()).0;
 
         let mut font_system = FontSystem::new();
-        let metrics = Metrics {
+        let mut buffer = Buffer::new_empty(Metrics {
             font_size: self.size,
             line_height,
-        };
-        let mut buffer = Buffer::new_empty(/*&mut font_system, */ metrics);
-        let attrs = Attrs::new().family(Family::Name(self.name));
-        buffer.set_text(&mut font_system, char, attrs, Shaping::Advanced);
+        });
+        let font_attributes = Attrs::new().family(Family::Name(self.name));
+        buffer.set_text(&mut font_system, char, font_attributes, Shaping::Advanced);
 
         let width = buffer.layout_runs().fold(0.0, |width, run| run.line_w.max(width));
 
